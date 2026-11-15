@@ -40,7 +40,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #crediti em{display:block;font-style:italic}
 #crediti q{display:block;font-family:var(--mono);font-size:.9em;quotes:"«" "»"}
 #play{position:absolute;left:50%;bottom:11.5%;transform:translateX(-50%);font-size:min(2.05vh,3.6vw);letter-spacing:.07em;white-space:nowrap;padding:.9em 2.5em .86em 1.5em;transition:transform .15s ease}
-#cuffie{position:absolute;left:50%;bottom:calc(11.5% + min(8.6vh,15vw));transform:translateX(-50%);white-space:nowrap;font-family:var(--mono);font-size:min(1.55vh,2.8vw);color:var(--ink);background:rgba(246,246,243,.84);padding:.5em .8em;pointer-events:none}
+#cuffie{position:absolute;left:50%;bottom:calc(11.5% + min(8.2vh,14.4vw));transform:translateX(-50%);white-space:nowrap;font-family:var(--mono);font-size:min(1.55vh,2.8vw);color:var(--ink);background:rgba(246,246,243,.84);padding:.5em .8em;pointer-events:none;text-align:center;line-height:1.5}
+#cuffie b{display:block;font-family:var(--sans);letter-spacing:.12em;font-size:1.15em}
 #play:hover,#play:focus-visible{transform:translateX(-50%) scale(1.06);outline:none}
 #play i{position:absolute;right:1em;top:50%;width:.62em;height:.62em;margin-top:-.31em;border-radius:50%;background:#e8212b;box-shadow:0 0 .6em #e8212b;animation:lampo 1s steps(1,end) infinite}
 @keyframes lampo{50%{opacity:0}}
@@ -59,6 +60,12 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #istruzioni{background:#f8f5ec url(assets/img/benvenuto2.jpg) center/cover no-repeat}
 #benvenuto .foglio,#istruzioni .foglio{background:rgba(248,248,244,.78);padding:26px 24px 30px;outline:1.2px solid var(--ink);box-shadow:8px 10px 0 rgba(27,27,32,.10)}
 #benvenuto .piu,#istruzioni .piu{display:none}
+#benvenuto .foglio p{text-align:justify;-webkit-hyphens:auto;hyphens:auto}
+#benvenuto .foglio p.dx{text-align:right}
+#benvenuto .foglio p.primo{-webkit-hyphens:manual;hyphens:manual}
+.tocco #traguardo small{display:none}
+.tocco #benvenuto .foglio,.tocco #istruzioni .foglio{background:rgba(248,248,244,.5)}
+.tocco .foglio p,.tocco .passo span{text-shadow:0 0 6px #f8f8f4,0 0 2px #f8f8f4}
 .tocco .pagina{padding:20px 14px}.tocco #benvenuto .foglio,.tocco #istruzioni .foglio{padding:18px 16px 26px}
 .tocco .passo{margin-bottom:14px;gap:14px}.tocco .passo svg{flex-basis:58px;width:58px;height:58px}
 @media (min-aspect-ratio:1/1){#benvenuto,#istruzioni{background-size:auto 100%;background-position:right 9vw center}
@@ -113,6 +120,14 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
 #dato .c i{display:block}
 #aiuto{position:absolute;left:0;right:0;bottom:22px;text-align:center;font-size:12px;opacity:0;transition:opacity .8s}
 #aiuto.su{opacity:.9}
+#saluto{position:absolute;left:0;right:0;top:34%;text-align:center;opacity:0;transition:opacity 1.4s ease;pointer-events:none}
+#saluto.su{opacity:1}
+#saluto span{display:inline-block;background:var(--velo);padding:14px 22px 16px;font-size:clamp(16px,2.6vh,22px);line-height:1.4}
+#saluto em{display:block;font-weight:700;font-size:1.25em}
+#traguardo{position:absolute;left:50%;top:30%;transform:translateX(-50%);width:max-content;max-width:86vw;pointer-events:auto;cursor:pointer;background:#1f1f24;color:#fff;padding:20px 26px 18px;font-family:var(--sans);font-size:clamp(16px,2.5vh,21px);line-height:1.4;text-align:center;opacity:0;transition:opacity .9s ease;box-shadow:8px 10px 0 rgba(27,27,32,.14)}
+#traguardo.su{opacity:1}
+#traguardo b{display:block;margin-top:.6em;font-size:1.3em;letter-spacing:.08em;color:#ff7fa6}
+#traguardo small{display:block;margin-top:.7em;font-family:var(--mono);font-size:.6em;opacity:.75}
 #aiuto span{background:var(--velo);padding:5px 10px}
 #stick{position:absolute;width:92px;height:92px;margin:-46px 0 0 -46px;border:1.2px solid var(--ink);border-radius:50%;opacity:.55}
 #stick i{position:absolute;left:50%;top:50%;width:30px;height:30px;margin:-15px 0 0 -15px;border-radius:50%;background:var(--rosa);border:1.2px solid var(--ink)}
@@ -161,6 +176,8 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
   <svg id="filo"><line x1="0" y1="0" x2="0" y2="0"/><circle cx="0" cy="0" r="4.5"/></svg>
   <div id="dato"></div>
   <div id="aiuto"><span></span></div>
+  <div id="saluto"><span><em>notimenospaceart</em>ti dà il benvenuto nel suo spazio</span></div>
+  <button id="traguardo" type="button" hidden>Condividi la tua mappa sonora<br>e prosegui quanto vuoi percorrendo<br>altre strade.<b>#MAPMEOUT</b><small class="solo-mouse">clic qui · o tasto C</small></button>
   <div id="stick" hidden><i></i></div>
   <div id="tasti" class="solo-tocco"><button id="bpausa" type="button"><i></i><i></i>pausa</button></div>
 </div>
@@ -179,8 +196,8 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
   <div class="foglio">
     <p class="primo">Benvenuti in questo spazio condiviso in cui il suono diventa materia e i dati forme tangibili.</p>
     <p>Ognuno di voi sta per navigare lo spazio in modo libero e autonomo. La vostra mappatura dello spazio sarà diversa da quella di qualsiasi altro utente che modificherà lo spazio stesso. Lo spazio non sarà uguale per tutti perché il vostro passaggio è già una variabile di modifica. Il flusso è ciò che conta in questa esperienza: i processi di modifica interni, non gli output finali.</p>
-    <p>Siete i benvenuti.<br>You are welcome.</p>
-    <p class="firma">Notimenospaceart</p>
+    <p class="dx">Siete i benvenuti.<br>You are welcome.</p>
+    <p class="firma dx">Notimenospaceart</p>
     <button class="chip avanti" type="button">AVANTI<i></i></button>
   </div>
 </div>
@@ -206,8 +223,8 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
   <div id="schermo">
     <video id="vintro" src="assets/intro/intro.mp4" poster="assets/intro/intro.jpg" muted loop playsinline autoplay preload="auto"></video>
     <div id="titolo"><h1>Map<br>Me<br>Out</h1><p>into the hole</p><div id="crediti"><em>a cura di notimenospaceart</em><q>Non raggiungere mai la Sposa</q></div></div>
-    <button id="suonointro" type="button">audio · off</button>
-    <div id="cuffie">Per un’esperienza immersiva indossare le cuffie</div>
+    <button id="suonointro" type="button">audio · on</button>
+    <div id="cuffie"><b>DURATA LIVE: 24 h</b>Per un’esperienza immersiva indossare le cuffie</div>
     <button id="play" class="chip" type="button">Entra nel LIVE-3D condiviso<i></i></button>
     <div id="sottoplay">tocca il tasto · o premi invio</div>
   </div>

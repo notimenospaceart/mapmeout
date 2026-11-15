@@ -737,6 +737,7 @@ function costruisciTutto() {
 /* ------------------------------------------------------------ stato del gioco */
 const P = { x: 0, z: -0.5, yaw: 0, pitch: 0, vx: 0, vz: 0, passo: 0, vel: 0 };
 let stato = 'intro', tGioco = 0, tp = 1, terza = false, ingresso = 0, nBuchi = 0, kPrec = null, ultimoSalva = 0;
+const visti = new Set(); let traguardo = false;
 const scoperti = new Set(); const tracce = Array.from({ length: N }, () => []);
 const CHIAVE = 'mmo-into-the-hole-2';
 try { const s = JSON.parse(localStorage.getItem(CHIAVE) || 'null'); if (s && Array.isArray(s.d)) s.d.forEach(id => scoperti.add(id)); } catch (e) { }
@@ -849,6 +850,7 @@ function aggiorna(dt) {
   for (const o of amb.oggetti) { if (!(o.r > 0)) continue; const dx = P.x - o.x, dz = P.z - (o.z + z0), d = Math.hypot(dx, dz), m = o.r + rg; if (d < m && d > 1e-5) { P.x += dx / d * (m - d); P.z += dz / d * (m - d); } }
   P.vel = Math.hypot(P.vx, P.vz); P.passo += P.vel * dt * 1.9;
   if (kPrec !== null && kk !== kPrec) { nBuchi++; $('#buchi').textContent = `buchi ${nBuchi}`; }
+  { const zl = mod(P.z, L); if (zl > 5 && zl < L - 5 && !visti.has(mod(kk, N))) { visti.add(mod(kk, N)); if (visti.size === N && !traguardo) { traguardo = true; const t = $('#traguardo'); t.hidden = false; requestAnimationFrame(() => t.classList.add('su')); setTimeout(() => { t.classList.remove('su'); setTimeout(() => { t.hidden = true; }, 900); }, 40000); } } }   // tutti gli ambienti attraversati almeno una volta
   if (kk !== kPrec) { kPrec = kk; cambiaAmbiente(ai); }
   const tr = tracce[ai], lz = P.z - z0, ul = tr[tr.length - 1]; if (!ul || Math.hypot(ul[0] - P.x, ul[1] - lz) > 1.1) { tr.push([P.x, lz]); if (tr.length > 600) tr.shift(); if (tr.length % 3 === 0) scriviTraccia(ai); }
 
@@ -1117,7 +1119,8 @@ addEventListener('pointerdown', provaPre); addEventListener('keydown', provaPre)
 function sfumaPre() { const v0 = preAudio.volume, t0 = performance.now(), giu = () => { const t = (performance.now() - t0) / 1200; if (t < 1) { preAudio.volume = v0 * (1 - t); requestAnimationFrame(giu); } else { preAudio.pause(); } }; giu(); }
 function avanti() {
   if (fase === 'benvenuto') { fase = 'istruzioni'; $('#benvenuto').hidden = true; $('#istruzioni').hidden = false; provaPre(); }
-  else if (fase === 'istruzioni') { fase = 'intro'; $('#istruzioni').hidden = true; sfumaPre(); const p = vintro.play(); if (p && p.catch) p.catch(() => { }); }
+  else if (fase === 'istruzioni') { fase = 'intro'; $('#istruzioni').hidden = true; sfumaPre(); vintro.muted = false; vintro.volume = 1; $('#suonointro').textContent = 'audio · on';
+    const p = vintro.play(); if (p && p.catch) p.catch(() => { vintro.muted = true; $('#suonointro').textContent = 'audio · off'; const q = vintro.play(); if (q && q.catch) q.catch(() => { }); }); }
   else if (fase === 'intro') play();
 }
 document.querySelectorAll('.avanti').forEach(b => b.addEventListener('click', avanti));
@@ -1130,7 +1133,8 @@ function play() {
   if (v0 > 0) sfuma();
   setTimeout(() => { intro.hidden = true; try { vintro.pause(); } catch (e) { } }, 1500);
   $('#nd').textContent = scoperti.size;
-  setTimeout(() => avviso(TOCCO ? 'tocca il pavimento: la pedina ci va · trascina il dito: ti guardi intorno' : 'W A S D o frecce: cammina · mouse: guarda · V: vedi la pedina · rotella: allarga la vista · L: live MIDI · R: registra', 11000), 2600);
+  setTimeout(() => { const s = $('#saluto'); s.classList.add('su'); setTimeout(() => s.classList.remove('su'), 5200); }, 1700);
+  setTimeout(() => avviso(TOCCO ? 'tocca il pavimento: la pedina ci va · trascina il dito: ti guardi intorno' : 'W A S D o frecce: cammina · mouse: guarda · V: vedi la pedina · rotella: allarga la vista · L: live MIDI · R: registra', 11000), 7600);
 }
 function pausa(si) {
   if (stato === 'intro') return;
@@ -1138,6 +1142,7 @@ function pausa(si) {
   else { stato = 'gioco'; elPausa.hidden = true; if (actx) actx.resume(); if (audioEl) { const p = audioEl.play(); if (p && p.catch) p.catch(() => { }); } if (vidLoop >= 0) { const p = vid.play(); if (p && p.catch) p.catch(() => { }); } chiediBlocco(); cv.focus(); }
 }
 elPausa.addEventListener('click', () => pausa(false));
+$('#traguardo').addEventListener('click', e => { e.stopPropagation(); condividi(); });
 function mappaGrande() { $('#mappabox').classList.toggle('grande'); }
 $('#bpausa').addEventListener('click', e => { e.stopPropagation(); if (stato === 'gioco') pausa(true); });
 if (TOCCO) $('#mappa').addEventListener('click', e => { e.stopPropagation(); mappaGrande(); });
