@@ -34,12 +34,12 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
   box-shadow:10px 12px 0 rgba(27,27,32,.10);overflow:hidden;transform-origin:56% 44%;transition:transform 1.25s cubic-bezier(.6,0,.85,.25),opacity 1.25s ease .15s}
 #schermo video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
 #titolo{position:absolute;left:7%;top:5.5%;color:var(--ink);pointer-events:none}
-#titolo h1{margin:0;font-weight:700;font-size:min(8.6vh,15.2vw);line-height:.98;letter-spacing:-.01em}
+#titolo h1{margin:0;color:#fff;text-shadow:0 0 .22em rgba(20,20,30,.5),0 0 .6em rgba(20,20,30,.25);font-weight:700;font-size:min(8.6vh,15.2vw);line-height:.98;letter-spacing:-.01em}
 #titolo p{display:inline-block;margin:.95em 0 0 .1em;padding:.42em .8em .4em;background:#1f1f24;color:#fff;font-family:var(--mono);font-size:min(1.9vh,3.4vw);letter-spacing:.03em}
 #crediti{margin:1.1em 0 0 .1em;display:table;padding:.5em .75em .55em;background:rgba(246,246,243,.84);color:var(--ink);font-size:min(1.75vh,3.1vw);line-height:1.45}
 #crediti em{display:block;font-style:italic}
 #crediti q{display:block;font-family:var(--mono);font-size:.9em;quotes:"«" "»"}
-#play{position:absolute;left:50%;bottom:11.5%;transform:translateX(-50%);font-size:min(2.05vh,3.6vw);letter-spacing:.07em;white-space:nowrap;padding:.9em 2.5em .86em 1.5em;transition:transform .15s ease}
+#play{text-shadow:0 0 .45em #ff2a35,0 0 1em #ff2a35,0 0 1.8em #ff2a35;position:absolute;left:50%;bottom:11.5%;transform:translateX(-50%);font-size:min(2.05vh,3.6vw);letter-spacing:.07em;white-space:nowrap;padding:.9em 2.5em .86em 1.5em;transition:transform .15s ease}
 #cuffie{position:absolute;left:50%;bottom:calc(11.5% + min(8.2vh,14.4vw));transform:translateX(-50%);white-space:nowrap;font-family:var(--mono);font-size:min(1.55vh,2.8vw);color:var(--ink);background:rgba(246,246,243,.84);padding:.5em .8em;pointer-events:none;text-align:center;line-height:1.5}
 #cuffie b{display:block;font-family:var(--sans);letter-spacing:.12em;font-size:1.15em}
 #play:hover,#play:focus-visible{transform:translateX(-50%) scale(1.06);outline:none}
@@ -65,7 +65,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #benvenuto .foglio p.primo{-webkit-hyphens:manual;hyphens:manual}
 .tocco #traguardo small{display:none}
 .tocco #benvenuto .foglio,.tocco #istruzioni .foglio{background:rgba(248,248,244,.5)}
-.tocco .foglio p,.tocco .passo span{text-shadow:0 0 6px #f8f8f4,0 0 2px #f8f8f4}
+.tocco .foglio p{text-shadow:0 0 6px #f8f8f4,0 0 2px #f8f8f4}
+#istruzioni h2,#istruzioni .passo b,#istruzioni .passo span,#istruzioni p{text-shadow:0 0 3px #fbfaf5,0 0 6px #fbfaf5,0 0 10px #fbfaf5,0 0 16px #fbfaf5,0 0 22px #fbfaf5}
+#istruzioni .passo svg{filter:drop-shadow(0 0 5px #fbfaf5) drop-shadow(0 0 9px #fbfaf5)}
 .tocco .pagina{padding:20px 14px}.tocco #benvenuto .foglio,.tocco #istruzioni .foglio{padding:18px 16px 26px}
 .tocco .passo{margin-bottom:14px;gap:14px}.tocco .passo svg{flex-basis:58px;width:58px;height:58px}
 @media (min-aspect-ratio:1/1){#benvenuto,#istruzioni{background-size:auto 100%;background-position:right 9vw center}
