@@ -1,5 +1,5 @@
 /* MAP ME OUT — into the hole
-   Un omino rosa attraversa, in prima persona e in loop, sei ambienti costruiti con il vocabolario delle tavole:
+   Un omino rosa attraversa, in prima persona e in loop, otto ambienti costruiti con il vocabolario delle tavole:
    schermi con cornice bianca, lenti, chip, lastre, semafori, sfere, cavi. Quando incontra un elemento, appare il suo dato.
    Tutto gira nel browser (WebGL2), senza librerie esterne. I dati sono in dati.js (misurati dai file originali). */
 (() => {
@@ -169,7 +169,7 @@ void main(){
 }`);
 const PL = compila(`#version 300 es
 layout(location=0) in vec3 aA; layout(location=1) in vec3 aB; layout(location=2) in vec2 aS; layout(location=3) in vec4 aC; layout(location=4) in float aW;
-uniform mat4 uVP, uM; uniform vec2 uRis; uniform float uDpr; out vec4 vC;
+uniform mat4 uVP, uM; uniform vec2 uRis; uniform float uDpr; uniform vec2 uAB; out vec4 vC;
 void main(){
   vec4 a = uVP*uM*vec4(aA,1.), b = uVP*uM*vec4(aB,1.); vC = aC; float nw = .05;
   if(a.w < nw && b.w < nw){ gl_Position = vec4(2.,2.,2.,1.); return; }
@@ -178,7 +178,7 @@ void main(){
   vec2 sa = a.xy/a.w*uRis*.5, sb = b.xy/b.w*uRis*.5, d = sb-sa; float l = length(d); d = l > 1e-5 ? d/l : vec2(1.,0.);
   vec4 p = mix(a, b, aS.x);
   vec2 off = (vec2(-d.y, d.x)*aS.y*.5 + d*(aS.x*2.-1.)*.35) * max(aW, .0)*uDpr;
-  p.xy += off/(uRis*.5)*p.w; p.z -= .0005*p.w;
+  p.xy += off/(uRis*.5)*p.w; float dd = min(.0025*p.w*p.w, 1.2) + .012; p.z = (uAB.x + uAB.y/max(p.w - dd, .1))*p.w;
   gl_Position = p;
 }`, `#version 300 es
 precision highp float; in vec4 vC; uniform float uAlfa; out vec4 o; void main(){ o = vec4(vC.rgb, vC.a*uAlfa); }`);
@@ -223,18 +223,20 @@ const U = (() => {
 })();
 
 /* ------------------------------------------------------------ atlante dei testi (chip, didascalie, grafici) */
-const ATL = document.createElement('canvas'); ATL.width = ATL.height = 2048; const ax = ATL.getContext('2d');
+const ATH = 1024, ATL = document.createElement('canvas'); ATL.width = 2048; ATL.height = ATH; const ax = ATL.getContext('2d');   // un foglio di scritte per ogni ambiente
+let atMax = 0;
 let atx = 0, aty = 0, atr = 0;
 function atlante(w, h, disegna) {
   if (atx + w > 2048) { atx = 0; aty += atr; atr = 0; }
   const x = atx, y = aty; ax.save(); ax.translate(x, y); ax.beginPath(); ax.rect(0, 0, w, h); ax.clip(); disegna(ax, w, h); ax.restore();
   atx += w + 4; atr = Math.max(atr, h + 4);
-  return [x / 2048, 1 - (y + h) / 2048, (x + w) / 2048, 1 - y / 2048];
+  atMax = Math.max(atMax, y + h);
+  return [x / 2048, 1 - (y + h) / ATH, (x + w) / 2048, 1 - y / ATH];
 }
 const SANS = '"MMO Sans", Helvetica, Arial, sans-serif', MONO = '"MMO Mono", Menlo, Consolas, monospace';
 
 /* ------------------------------------------------------------ il mondo */
-const W = 36, L = 60, T = 1.6, N = 7, Y0 = 0.014, LIMX = W / 2 - 1.7;
+const W = 36, L = 60, T = 1.6, N = 8, Y0 = 0.014, LIMX = W / 2 - 1.7;
 const C = { ink: [27, 27, 32], lime: [143, 210, 42], ciano: [63, 200, 224], magenta: [224, 52, 156], rosso: [216, 38, 46], nero: [31, 31, 36], oro: [168, 137, 74],
   mattone: [168, 80, 63], blu: [42, 63, 216], verde: [47, 143, 74], grigio: [154, 154, 154], rosa: [230, 107, 143], salmone: [224, 147, 135], malva: [181, 137, 146], azzurro: [143, 228, 232], oliva: [150, 160, 70] };
 const NOMI = { lime: C.lime, ciano: C.ciano, magenta: C.magenta, oliva: C.oliva, verde: C.verde };
@@ -245,10 +247,12 @@ const AMB = [
   { nome: 'rosa', bg: [207, 169, 165], ink: [30, 24, 28], alto: 10, ombra: .20 },
   { nome: 'notte', bg: [21, 21, 28], ink: [236, 236, 230], alto: 8, ombra: 0 },
   { nome: 'menta', bg: [221, 235, 226], ink: [27, 27, 32], alto: 16, ombra: .18 },
-  { nome: 'sposa', bg: [232, 214, 216], pav: [190, 224, 140], soff: [214, 230, 206], ink: [27, 27, 32], alto: 12, ombra: .2 }
+  { nome: 'sposa', bg: [232, 214, 216], pav: [190, 224, 140], soff: [214, 230, 206], ink: [27, 27, 32], alto: 12, ombra: .2 },
+  { nome: 'erba', bg: [250, 250, 247], pav: [137, 176, 62], tpav: 'assets/img/erba.jpg', tess: [137, 176, 62], soff: [255, 255, 255], ink: [27, 27, 32], alto: 11, ombra: .22 }
 ];
+const TESS = j => AMB[j].tess || AMB[j].bg;      // il colore con cui un ambiente si riconosce nelle mappe
 const BUCHI = [{ cx: 0, hw: 2.2, h: 4.6, arco: false }, { cx: -7, hw: 1.8, h: 3.0, arco: true }, { cx: 8, hw: 2.6, h: 5.0, arco: false },
-               { cx: -3, hw: 2.0, h: 2.8, arco: true }, { cx: 10, hw: 1.7, h: 4.0, arco: false }, { cx: -9, hw: 2.4, h: 3.4, arco: true }, { cx: 5, hw: 2.1, h: 3.3, arco: true }];
+               { cx: -3, hw: 2.0, h: 2.8, arco: true }, { cx: 10, hw: 1.7, h: 4.0, arco: false }, { cx: -9, hw: 2.4, h: 3.4, arco: true }, { cx: 5, hw: 2.1, h: 3.3, arco: true }, { cx: -5, hw: 2.3, h: 4.2, arco: false }];
 const tono = (c, f) => [clamp(c[0] * f, 0, 255), clamp(c[1] * f, 0, 255), clamp(c[2] * f, 0, 255), 0];
 const con = (c, a) => [c[0], c[1], c[2], a];
 const rigaMis = m => `luce ${m[0]}  bordi ${m[1]}%` + (m[2] != null ? `  tinta ${m[2]}°` : '');
@@ -268,7 +272,7 @@ const QUADRI = [
 ];
 // i video della cartella «VIDEO DA METTERE SU PARETI» trovano da soli un muro libero
 (DATI.pareti || []).forEach((v, j) => {
-  const sposa = /sposa/i.test(v.nome), asp = v.w / v.h, h0 = asp < .8 ? 4.8 : asp > 1.2 ? 4.0 : 4.4, w = Math.min(8, h0 * asp), h = w / asp, giro = sposa ? [6] : [4, 1, 3, 5, 0, 2, 6];
+  const sposa = /sposa/i.test(v.nome), asp = v.w / v.h, h0 = asp < .8 ? 4.8 : asp > 1.2 ? 4.0 : 4.4, w = Math.min(8, h0 * asp), h = w / asp, giro = sposa ? [6] : [4, 1, 7, 3, 5, 0, 2, 6];
   for (let t = 0; t < giro.length; t++) {
     const amb = giro[(j + t) % giro.length];
     for (const z of [30, 14, 46]) for (const lato of [1, -1]) {
@@ -300,6 +304,7 @@ function costruisci(i) {
   const A = AMB[i], prima = AMB[mod(i - 1, N)], R = rng(1000 + i * 7919 + SEME * 104729), H = A.alto, ink = A.ink, scuro = i === 4;
   const a = { i, g: new Geo(), ga: new Geo(), go: new Geo(), l: new Lin(), mostre: [], din: [], lampade: [], oggetti: [], solidi: [] };
   const g = a.g, l = a.l, bordo = scuro ? [120, 120, 132] : C.ink;
+  ax.clearRect(0, 0, 2048, ATH); atx = aty = atr = 0;
   const rr = (x, y) => x + (y - x) * R(), scegli = arr => arr[Math.floor(R() * arr.length)];
   const ogg = o => { o.id = `${i}:${o.tipo}:${a.oggetti.length}`; o.amb = i; a.oggetti.push(o); TOT_DATI++; return o; };
   const ombra = (x, z, r, f = 1) => { if (A.ombra > 0) a.go.quad([x - r, .008, z + r], [x + r, .008, z + r], [x + r, .008, z - r], [x - r, .008, z - r], [0, 0, 0, 255 * A.ombra * f], [0, 1, 0]); };
@@ -307,7 +312,8 @@ function costruisci(i) {
 
   /* --- la stanza: campiture piatte e fili di prospettiva --- */
   const cPav = A.pav ? con(A.pav, 0) : scuro ? tono(A.bg, 1.25) : tono(A.bg, .972), cMuro = tono(A.bg, 1), cSoff = A.soff ? con(A.soff, 0) : scuro ? tono(A.bg, .8) : tono(A.bg, 1.025);
-  g.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], cPav, [0, 1, 0]);
+  if (A.tpav) { a.gp = new Geo(); a.gp.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], [255, 255, 255, 0], [0, 1, 0], [0, 0, W / 3, L / 3]); a.tpav = A.tpav; }
+  else g.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], cPav, [0, 1, 0]);
   g.quad([-W / 2, H, 0], [W / 2, H, 0], [W / 2, H, L], [-W / 2, H, L], cSoff, [0, -1, 0]);
   g.quad([-W / 2, 0, 0], [-W / 2, 0, L], [-W / 2, H, L], [-W / 2, H, 0], cMuro, [1, 0, 0]);
   g.quad([W / 2, 0, 0], [W / 2, 0, L], [W / 2, H, L], [W / 2, H, 0], cMuro, [-1, 0, 0]);
@@ -369,7 +375,7 @@ function costruisci(i) {
         ['p', `operazioni · ${Lp.ops.length ? Lp.ops.join(' → ') : 'nessuna nel nome'}`],
         ['p', `file · ${it(Lp.dur, 2)} s · ${Lp.fotogrammi} fotogrammi · ${Lp.w}×${Lp.h} · ${it(Lp.fps)} fps`],
         ['p', `peso · ${it(Lp.mb, 1)} MB · ${nn(Lp.mbps != null ? it(Lp.mbps, 1) : null, ' Mbit/s')} · entropia ${nn(Lp.entropia != null ? it(Lp.entropia, 2) : null, ' bit')}`],
-        ['p', `suono · ${SUONI[suonoDelLoop(li)].nome}${Lp.con_suono ? ' · loop nato con suono' : ''}`]].concat(extra || []) });
+        ['p', `suono · uno a caso tra ${Math.max(1, SUONI.length - 1)}, ogni volta che ti avvicini${Lp.con_suono ? ' · loop nato con suono' : ''}`]].concat(extra || []) });
     if (forma === 'tavola') {                    // il parallelepipedo verticale: contiene il 2D e lo porta nel 3D
       const yc = 2.42, Mb = M4.mul(M0, M4.tr(0, yc, 0));
       g.box(Mb, 2.4, 4.08, .36, [255, 255, 255, 105]); l.box(Mb, 2.4, 4.08, .36, bordo, 1.5);
@@ -561,7 +567,8 @@ function costruisci(i) {
   }
   if (i === 5) for (const lato of [-1, 1]) onde(a, lato, [{ h: 5.2, a: .7, f: .16, p: lato * .7, c: [143, 228, 232] }, { h: 3.7, a: .55, f: .2, p: 1.9 * lato, c: [224, 147, 135] }, { h: 2.3, a: .45, f: .27, p: 3.1, c: [181, 137, 146] }, { h: 1.05, a: .4, f: .22, p: lato * 2.4, c: [224, 147, 135] }]);
 
-  a.mesh = mkMesh(a.g); a.lin = mkLin(a.l); a.meshO = mkMesh(a.go);
+  a.mesh = mkMesh(a.g); a.lin = mkLin(a.l); a.meshO = mkMesh(a.go); if (a.gp) a.meshP = mkMesh(a.gp);
+  a.texAtl = texDa(ATL, true, TOCCO ? .5 : 1);
   return a;
 }
 function spostata(pl, d) { return pl.map((p, i) => { const a = pl[Math.max(0, i - 1)], b = pl[Math.min(pl.length - 1, i + 1)]; let dx = b[0] - a[0], dz = b[1] - a[1]; const l = Math.hypot(dx, dz) || 1; return [p[0] - dz / l * d, p[1] + dx / l * d]; }); }
@@ -582,6 +589,12 @@ function onde(a, lato, strati) {
 
 /* ------------------------------------------------------------ immagini e video dei loop */
 const TEX = new Map();
+const TEXR = new Map();                          // texture che si ripetono (pavimenti)
+function texRipetuta(url) {
+  let e = TEXR.get(url);
+  if (!e) { e = { t: null }; TEXR.set(url, e); const im = new Image(); im.onload = () => { e.t = texDa(im, true, 1); gl.bindTexture(gl.TEXTURE_2D, e.t); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.REPEAT); }; im.src = url; }
+  return e.t;
+}
 function tex(url, chiedi) {
   let e = TEX.get(url);
   if (!e) { if (!chiedi) return null; e = { t: null, s: 1 }; TEX.set(url, e); const im = new Image(); im.onload = () => { e.t = texDa(im, true, TOCCO ? .5 : 1); e.s = 2; }; im.onerror = () => { e.s = 3; }; im.src = url; }
@@ -609,7 +622,8 @@ const SUONI = (DATI.suoni && DATI.suoni.length ? DATI.suoni : [{ f: 'assets/audi
 const audioEl = null;
 let actx = null, guad = null, anal = null, bufA = null, livello = 0, picco = 0, muto = false, suonoOra = -1, loopSuono = -1, live = false, busLive = null, midiNome = '';
 const volume = () => muto ? 0 : (live ? .28 : .9);
-function suonoDelLoop(li) { const Lp = DATI.loops[li], k = SUONI.findIndex(s => s.n && s.n === Lp.n); return k >= 0 ? k : li % SUONI.length; }
+const BASE = Math.max(0, SUONI.findIndex(s => s.n === '1468'));     // il suono di tutto l'ambiente
+function suonoACaso() { if (SUONI.length < 2) return BASE; let k; do { k = Math.floor(Math.random() * SUONI.length); } while (k === BASE || (SUONI.length > 2 && k === suonoOra)); return k; }
 function avviaAudio() {
   if (actx) return;
   try {
@@ -617,18 +631,23 @@ function avviaAudio() {
     busLive = actx.createGain(); busLive.gain.value = .5; const comp = actx.createDynamicsCompressor(); uscita = comp;
     guad.connect(comp); busLive.connect(comp); comp.connect(anal); anal.connect(actx.destination); if (actx.state === 'suspended') actx.resume();
     guad.gain.linearRampToValueAtTime(volume(), actx.currentTime + 2.5);
-    suona(suonoOra >= 0 ? suonoOra : suonoDelLoop(LOOP_AMB[0][0] || 0), true);
+    suona(suonoOra >= 0 ? suonoOra : BASE, true);
   } catch (e) { actx = null; }
 }
-function caricaSuono(k) { const s = SUONI[k]; if (s.st) return; s.st = 1; fetch(s.f).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => actx.decodeAudioData(b)).then(buf => { s.buf = buf; s.st = 2; if (suonoOra === k) parteSuono(k); }).catch(() => { s.st = 3; }); }
-function parteSuono(k) {                        // tutti i suoni durano uguale: entrano a tempo, nello stesso punto del giro
-  const s = SUONI[k]; if (!s.buf || s.src) return; const fine = s.dur ? Math.min(s.buf.duration, s.dur) : s.buf.duration;
-  s.g = actx.createGain(); s.g.gain.value = 0; s.g.connect(guad); s.src = actx.createBufferSource(); s.src.buffer = s.buf; s.src.loop = true; s.src.loopEnd = fine; s.src.connect(s.g); s.src.start(0, actx.currentTime % fine); s.g.gain.setTargetAtTime(1, actx.currentTime, .45);
+function caricaSuono(k) { const s = SUONI[k]; if (s.st) return; s.st = 1; fetch(s.f).then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => actx.decodeAudioData(b)).then(buf => { if (suonoOra === k || k === BASE) { s.buf = buf; s.st = 2; if (suonoOra === k) parteSuono(k); } else s.st = 0; }).catch(() => { s.st = 3; if (suonoOra === k && k !== BASE) suona(BASE); }); }
+function fermaSuono(j) {                         // esce sfumando; i suoni a caso non restano in memoria (i telefoni ne hanno poca)
+  const p = SUONI[j]; if (!p.src) return; const src = p.src, g = p.g; g.gain.setTargetAtTime(0, actx.currentTime, .3); setTimeout(() => { try { src.stop(); } catch (e) { } try { g.disconnect(); } catch (e) { } }, 1900); p.src = null; p.g = null;
+  if (j !== BASE) { p.buf = null; p.st = 0; }
+}
+function parteSuono(k) {                        // tutti i suoni durano uguale: entrano a tempo, nello stesso punto del giro; chi suonava prima si interrompe
+  const s = SUONI[k]; if (!s.buf || k !== suonoOra) return;
+  if (!s.src) { const fine = s.dur ? Math.min(s.buf.duration, s.dur) : s.buf.duration;
+    s.g = actx.createGain(); s.g.gain.value = 0; s.g.connect(guad); s.src = actx.createBufferSource(); s.src.buffer = s.buf; s.src.loop = true; s.src.loopEnd = fine; s.src.connect(s.g); s.src.start(0, actx.currentTime % fine); s.g.gain.setTargetAtTime(1, actx.currentTime, .3); }
+  for (let j = 0; j < SUONI.length; j++) if (j !== k) fermaSuono(j);
 }
 function suona(k, forza) {
-  if (k === suonoOra && !forza) return; const prima = suonoOra; suonoOra = k; $('#suono').textContent = 'suono · ' + SUONI[k].nome; if (!actx) return;
-  if (prima >= 0 && prima !== k) { const p = SUONI[prima]; if (p.src) { const src = p.src, g = p.g; g.gain.setTargetAtTime(0, actx.currentTime, .45); setTimeout(() => { try { src.stop(); } catch (e) { } try { g.disconnect(); } catch (e) { } }, 2600); p.src = null; p.g = null; } }
-  if (SUONI[k].st === 2) parteSuono(k); else caricaSuono(k);
+  if (k === suonoOra && !forza) return; suonoOra = k; $('#suono').textContent = 'suono · ' + SUONI[k].nome; if (!actx) return;
+  if (SUONI[k].st === 2) parteSuono(k); else { if (SUONI[k].st === 3) SUONI[k].st = 0; caricaSuono(k); }
 }
 function setMuto(m) { muto = m; if (guad && actx) guad.gain.setTargetAtTime(volume(), actx.currentTime, .12); }
 function ascolta(dt) {
@@ -711,7 +730,6 @@ const AMBI = []; let texAtl = null;
 function costruisciTutto() {
   TOT_DATI = 0; for (let i = 0; i < N; i++) AMBI.push(costruisci(i));
   AMBI.forEach(a => { a.meshA = mkMesh(a.ga); });
-  texAtl = texDa(ATL, true);
   $('#nt').textContent = TOT_DATI;
   QUADRI.forEach(q => tex(q.img, true));
 }
@@ -720,7 +738,7 @@ function costruisciTutto() {
 const P = { x: 0, z: -0.5, yaw: 0, pitch: 0, vx: 0, vz: 0, passo: 0, vel: 0 };
 let stato = 'intro', tGioco = 0, tp = 1, terza = false, ingresso = 0, nBuchi = 0, kPrec = null, ultimoSalva = 0;
 const scoperti = new Set(); const tracce = Array.from({ length: N }, () => []);
-const CHIAVE = 'mmo-into-the-hole-1';
+const CHIAVE = 'mmo-into-the-hole-2';
 try { const s = JSON.parse(localStorage.getItem(CHIAVE) || 'null'); if (s && Array.isArray(s.d)) s.d.forEach(id => scoperti.add(id)); } catch (e) { }
 function salva() { try { localStorage.setItem(CHIAVE, JSON.stringify({ d: [...scoperti] })); } catch (e) { } }
 
@@ -844,11 +862,11 @@ function aggiorna(dt) {
   } else if (vicino) { vicino = null; $('#dato').classList.remove('su'); }
 
   // il loop più vicino si mette in moto (il video prende il posto del fermo immagine)
-  let vb = -1, vd = 11, sb = -1, sd = 8.5; hdV.clear();
+  let vb = -1, vd = 11, sb = -1, sd = 6.5; hdV.clear();
   for (const o of amb.oggetti) { if (o.loop == null) continue; const d = Math.hypot(P.x - o.x, P.z - (o.z + z0)); if (d < 9.5) hdV.add(o.loop); if (d < sd) { sd = d; sb = o.loop; } if ((o.tipo === 'tavola' || o.tipo === 'schermo' || o.tipo === 'lente') && d < vd) { vd = d; vb = o.loop; } }
   videoPer(vb, vd < (vid4k ? 6.5 : 5));
   if (vid4k && vidPronto) { lentoAcc = dtVero > .034 ? lentoAcc + dtVero : Math.max(0, lentoAcc - dtVero * .5); if (lentoAcc > 2.5) lento4k = true; }   // se il 4K pesa troppo, si torna alla copia leggera
-  if (sb >= 0 && sb !== loopSuono) { loopSuono = sb; suona(suonoDelLoop(sb)); timbroDa(DATI.loops[sb]); }
+  if (sb !== loopSuono) { loopSuono = sb; if (sb >= 0) { suona(suonoACaso()); timbroDa(DATI.loops[sb]); } else suona(BASE); }   // vicino a un loop: un suono a caso; lontano da tutti: il suono dell'ambiente
   tp = lerp(tp, (terza || ingresso > .2) ? 1 : 0, 1 - Math.exp(-dt * 3.2));
 }
 
@@ -901,11 +919,11 @@ function disegnaMappa(ai, lz) {
   const px = X(P.x), pz = Z(lz), ang = Math.atan2(-Math.cos(P.yaw), -Math.sin(P.yaw));
   mx.fillStyle = '#e66b8f'; mx.globalAlpha = .22; mx.beginPath(); mx.moveTo(px, pz); mx.arc(px, pz, 30 * k, ang - .62, ang + .62); mx.closePath(); mx.fill(); mx.globalAlpha = 1;
   mx.save(); mx.translate(px, pz); mx.rotate(ang); mx.strokeStyle = ink; mx.lineWidth = 1.2; mx.beginPath(); mx.moveTo(7 * k, 0); mx.lineTo(-4.5 * k, 4.2 * k); mx.lineTo(-2.2 * k, 0); mx.lineTo(-4.5 * k, -4.2 * k); mx.closePath(); mx.fill(); mx.stroke(); mx.restore();
-  // il giro dei sei ambienti: quanto hai scoperto in ognuno
-  const y0 = hm + 7 * k, q = (cw - 5 * 3 * k) / N, hq = ch - y0 - 1;
+  // il giro degli ambienti: quanto hai scoperto in ognuno
+  const y0 = hm + 7 * k, q = (cw - (N - 1) * 3 * k) / N, hq = ch - y0 - 1;
   for (let j = 0; j < N; j++) {
     const o2 = AMBI[j].oggetti, f = o2.filter(o => scoperti.has(o.id)).length / o2.length, x = j * (q + 3 * k);
-    mx.fillStyle = `rgb(${AMB[j].bg.join(',')})`; mx.fillRect(x, y0, q, hq); mx.fillStyle = '#e66b8f'; mx.fillRect(x, y0 + hq * (1 - f), q, hq * f);
+    mx.fillStyle = `rgb(${TESS(j).join(',')})`; mx.fillRect(x, y0, q, hq); mx.fillStyle = '#e66b8f'; mx.fillRect(x, y0 + hq * (1 - f), q, hq * f);
     mx.strokeStyle = ink; mx.lineWidth = j === ai ? 2.4 : 1; mx.strokeRect(x + .5, y0 + .5, q - 1, hq - 1);
   }
   const et = `mappa · ${qui}/${ogg.length} qui`; if (mappat.textContent !== et) mappat.textContent = et;
@@ -913,17 +931,17 @@ function disegnaMappa(ai, lz) {
 const mappat = $('#mappat');
 
 /* ------------------------------------------------------------ disegno */
-let VP = M4.id(), occhio = [0, 0, 0], campo = 68, nFot = 0;
-try { const c = parseFloat(localStorage.getItem('mmo-campo')); if (c >= 45 && c <= 118) campo = c; } catch (e) { }
-function setCampo(v) { campo = clamp(Math.round(v), 45, 118); try { localStorage.setItem('mmo-campo', campo); } catch (e) { } avviso(`vista ${campo}°` + (campo === 68 ? ' (normale)' : ''), 1400); }
+let VP = M4.id(), occhio = [0, 0, 0], campo = 118, nFot = 0;
+try { const c = parseFloat(localStorage.getItem('mmo-campo-2')); if (c >= 45 && c <= 118) campo = c; } catch (e) { }
+function setCampo(v) { campo = clamp(Math.round(v), 45, 118); try { localStorage.setItem('mmo-campo-2', campo); } catch (e) { } avviso(`vista ${campo}°` + (campo === 118 ? ' (grandangolo)' : campo === 68 ? ' (normale)' : ''), 1400); }
 addEventListener('wheel', e => { if (stato !== 'gioco') return; e.preventDefault(); setCampo(campo + Math.sign(e.deltaY) * 3); }, { passive: false });
 function usaMesh() { gl.useProgram(PM.p); gl.uniformMatrix4fv(PM.u.uVP, false, VP); gl.uniform3fv(PM.u.uL, LUCE); gl.uniform1i(PM.u.uT, 0); gl.activeTexture(gl.TEXTURE0); }
-const LUCE = norm([-.4, .82, -.42]), UNO = [1, 1, 1, 1], UVI = [0, 0, 1, 1];
+const LUCE = norm([-.4, .82, -.42]), UNO = [1, 1, 1, 1], UVI = [0, 0, 1, 1], TINTA_ERBA = [1.3, 1.3, 1.12, 1];
 function dis(mesh, M, modo, tinta, t, uv, NM) {
   gl.uniformMatrix4fv(PM.u.uM, false, M); gl.uniformMatrix4fv(PM.u.uNM, false, NM || M); gl.uniform1i(PM.u.uModo, modo); gl.uniform4fv(PM.u.uTinta, tinta || UNO); gl.uniform4fv(PM.u.uUV, uv || UVI);
   if (t) gl.bindTexture(gl.TEXTURE_2D, t); gl.bindVertexArray(mesh.vao); gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
 }
-function usaLin(alfa = 1) { gl.useProgram(PL.p); gl.uniformMatrix4fv(PL.u.uVP, false, VP); gl.uniform2f(PL.u.uRis, cv.width, cv.height); gl.uniform1f(PL.u.uDpr, cv.width / Math.max(1, cv.clientWidth)); gl.uniform1f(PL.u.uAlfa, alfa); }
+function usaLin(alfa = 1) { gl.useProgram(PL.p); gl.uniformMatrix4fv(PL.u.uVP, false, VP); gl.uniform2f(PL.u.uRis, cv.width, cv.height); gl.uniform2f(PL.u.uAB, 300.1 / 299.9, -60 / 299.9); gl.uniform1f(PL.u.uDpr, cv.width / Math.max(1, cv.clientWidth)); gl.uniform1f(PL.u.uAlfa, alfa); }
 function disL(lin, M) { gl.uniformMatrix4fv(PL.u.uM, false, M); gl.bindVertexArray(lin.vao); gl.drawArrays(gl.TRIANGLES, 0, lin.n); }
 const mDin = (d, t) => M4.cat(M4.tr(d.t[0], d.t[1], d.t[2]), M4.ry(d.yaw + d.vel * t), M4.sc(d.s, d.s, d.s));
 const rDin = (d, t) => M4.ry(d.yaw + d.vel * t);
@@ -1030,6 +1048,7 @@ function disegna() {
   usaMesh();
   for (const [k, a, Mk] of stanze) {
     dis(a.mesh, Mk, 0);
+    if (a.meshP) { const tp2 = texRipetuta(a.tpav); if (tp2) dis(a.meshP, Mk, 1, TINTA_ERBA, tp2); else dis(a.meshP, Mk, 0, [.54, .69, .24, 1]); }
     const pressoQui = Math.abs(k - kk) <= 1;
     gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(-2, -6);
     for (const m of a.mostre) {
@@ -1051,7 +1070,7 @@ function disegna() {
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
   for (const [k, a, Mk] of stanze) { if (a.meshO.n) dis(a.meshO, Mk, 3); }
   if (A.ombra > 0) dis(U.quadOmbra, M4.cat(M4.tr(P.x, .009, P.z), M4.rx(-Math.PI / 2), M4.sc(1.3, 1.3, 1)), 3);
-  for (const [k, a, Mk] of stanze) { if (a.meshA.n) dis(a.meshA, Mk, 2, UNO, texAtl); }
+  for (const [k, a, Mk] of stanze) { if (a.meshA.n) dis(a.meshA, Mk, 2, UNO, a.texAtl); }
 
   // il tratto
   usaLin(1);
@@ -1133,7 +1152,7 @@ function immagineMappa() {
   const cols = 4, lw = 196, lh = lw * L / W, gx = 30, gy = 64, x0 = (1080 - (cols * lw + (cols - 1) * gx)) / 2, y0 = 268; let tot = 0, sc = 0;
   for (let j = 0; j < N; j++) {
     const riga = Math.floor(j / cols), nr = Math.min(cols, N - riga * cols), ox = (riga === 0 ? x0 : (1080 - (nr * lw + (nr - 1) * gx)) / 2) + (j % cols) * (lw + gx), oy = y0 + riga * (lh + gy), s = lw / W, X = v => ox + (W / 2 - v) * s, Z = v => oy + (L - v) * s, A = AMB[j];
-    x.fillStyle = `rgb(${A.bg.join(',')})`; x.fillRect(ox, oy, lw, lh); x.strokeStyle = ink; x.lineWidth = 2; x.strokeRect(ox, oy, lw, lh);
+    x.fillStyle = `rgb(${TESS(j).join(',')})`; x.fillRect(ox, oy, lw, lh); x.strokeStyle = ink; x.lineWidth = 2; x.strokeRect(ox, oy, lw, lh);
     const scuro = j === 4, ci = scuro ? '#ecece6' : ink; x.fillStyle = ci; x.strokeStyle = ci; x.lineWidth = 1.5;
     for (const o of AMBI[j].oggetti) { tot++; const si = scoperti.has(o.id); if (si) sc++; if (o.tipo === 'buco') continue; const px = X(o.x), pz = Z(o.z); if (si) { x.beginPath(); x.arc(px, pz, 4.2, 0, 7); x.fill(); } else { x.globalAlpha = .3; x.beginPath(); x.arc(px, pz, 2.6, 0, 7); x.stroke(); x.globalAlpha = 1; } }
     const tr = tracce[j]; x.strokeStyle = '#e66b8f'; x.lineWidth = 4; x.lineJoin = x.lineCap = 'round'; x.beginPath(); tr.forEach((p, k) => { if (k && Math.hypot(p[0] - tr[k - 1][0], p[1] - tr[k - 1][1]) < 4) x.lineTo(X(p[0]), Z(p[1])); else x.moveTo(X(p[0]), Z(p[1])); }); x.stroke();
@@ -1183,7 +1202,7 @@ function parti() {
 }
 const fontPronti = (document.fonts && document.fonts.load) ? Promise.all([document.fonts.load(`700 40px "MMO Sans"`), document.fonts.load(`400 40px "MMO Mono"`)]).catch(() => { }) : Promise.resolve();
 Promise.race([fontPronti, new Promise(r => setTimeout(r, 2500))]).then(parti);
-if (TOCCO) $('#sottoplay').textContent = 'tocca PLAY';
+if (TOCCO) $('#sottoplay').textContent = 'tocca il tasto per entrare';
 
 window.MMO = { P, AMBI, AMB, play, stato: () => stato, set terza(v) { terza = v; }, salta(z, x = 0, yaw = 0, pitch = 0) { P.z = z; P.x = x; P.yaw = yaw; P.pitch = pitch; P.vx = P.vz = 0; ingresso = 0; }, scoperti, info: () => ({ tp, vid4k, lento4k, tot: TOT_DATI, tex: TEX.size, vidLoop, vidPronto, livello }) };
 })();
