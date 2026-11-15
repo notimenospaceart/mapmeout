@@ -738,7 +738,7 @@ addEventListener('keydown', e => {
   if (e.code === 'KeyR') registra(!rec);
   if (e.code === 'KeyX') setCampo(campo + 6);
   if (e.code === 'KeyZ') setCampo(campo - 6);
-  if (e.code === 'Tab') { e.preventDefault(); $('#mappabox').classList.toggle('grande'); }
+  if (e.code === 'Tab') { e.preventDefault(); mappaGrande(); }
   if (e.code === 'KeyF') { try { const d = document; if (d.fullscreenElement) d.exitFullscreen(); else { const p = d.documentElement.requestFullscreen(); if (p && p.catch) p.catch(() => { }); } } catch (err) { } }
   if (e.code === 'KeyM') { setMuto(!muto); avviso(muto ? 'audio spento' : 'audio acceso', 1600); }
   if (e.code === 'KeyP' || (e.code === 'Escape' && !bloccato)) pausa(stato !== 'pausa');
@@ -1119,6 +1119,10 @@ function pausa(si) {
   else { stato = 'gioco'; elPausa.hidden = true; if (actx) actx.resume(); if (audioEl) { const p = audioEl.play(); if (p && p.catch) p.catch(() => { }); } if (vidLoop >= 0) { const p = vid.play(); if (p && p.catch) p.catch(() => { }); } chiediBlocco(); cv.focus(); }
 }
 elPausa.addEventListener('click', () => pausa(false));
+function mappaGrande() { const g = $('#mappabox').classList.toggle('grande'); $('#bmappa').textContent = g ? 'mappa −' : 'mappa +'; }
+$('#bpausa').addEventListener('click', e => { e.stopPropagation(); if (stato === 'gioco') pausa(true); });
+$('#bmappa').addEventListener('click', e => { e.stopPropagation(); mappaGrande(); });
+if (TOCCO) $('#mappa').addEventListener('click', e => { e.stopPropagation(); mappaGrande(); });
 const DIDA_MAPPA = 'La mia mappa di MAP ME OUT — into the hole. #mapmeout';
 function immagineMappa() {
   const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; const x = c.getContext('2d'), ink = '#1b1b20';
@@ -1156,7 +1160,7 @@ document.querySelectorAll('.condividi').forEach(b => { b.addEventListener('click
 // i link da dare agli altri (solo dalla copia sul Mac)
 const SUL_MAC = /^(127\.0\.0\.1|localhost)$/.test(location.hostname);
 if (SUL_MAC && $('#linkbox')) { $('#linkbox').hidden = false;
-  const sito = $('#sito'), out = $('#linkout'); try { sito.value = localStorage.getItem('mmo-sito') || ''; } catch (e) { }
+  const sito = $('#sito'), out = $('#linkout'); try { sito.value = localStorage.getItem('mmo-sito') || 'https://notimenospaceart.github.io/mapmeout/'; } catch (e) { sito.value = 'https://notimenospaceart.github.io/mapmeout/'; }
   $('#linkbox').addEventListener('click', e => e.stopPropagation());
   const fai = cod => { const base = sito.value.trim().replace(/#.*$/, ''); if (!/^https?:\/\//.test(base)) { out.textContent = 'scrivi prima l\'indirizzo del sito (comincia con https://)'; return; } try { localStorage.setItem('mmo-sito', base); } catch (e) { } const l = base + '#' + cod; out.textContent = l; try { navigator.clipboard.writeText(l); out.textContent = l + '  — copiato'; } catch (e) { } };
   $('#fa24').addEventListener('click', () => fai(codice24())); $('#faper').addEventListener('click', () => fai(CODICE_PERENNE));

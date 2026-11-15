@@ -130,6 +130,11 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
 .tocco #testa b{font-size:12px}.tocco #testa code,.tocco #conta code{font-size:9px}.tocco #conta b{font-size:12px}
 .tocco #suono,.tocco #live{display:none}
 .tocco #mirino{display:none}
+#tasti{display:none}
+.tocco #tasti{display:flex;position:absolute;right:12px;top:66px;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:auto}
+#tasti button{font-family:var(--mono);font-size:12px;line-height:1;min-width:92px;height:40px;padding:0 12px;color:var(--ink);background:var(--velo);border:1.2px solid var(--ink);border-radius:20px;touch-action:manipulation}
+#bpausa i{display:inline-block;width:3px;height:11px;margin-right:3px;background:var(--ink);vertical-align:-1px}#bpausa i+i{margin-right:8px}
+.tocco #mappa{pointer-events:auto}
 .tocco #aiuto{bottom:auto;top:58px;font-size:11px}
 @media (max-width:640px){#testa{left:44px}#conta{right:44px}#mappa{width:96px;height:182px}#dato b{font-size:15px}}
 </style>
@@ -147,11 +152,12 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
   <div id="dato"></div>
   <div id="aiuto"><span></span></div>
   <div id="stick" hidden><i></i></div>
+  <div id="tasti" class="solo-tocco"><button id="bpausa" type="button"><i></i><i></i>pausa</button><button id="bmappa" type="button">mappa +</button></div>
 </div>
 
 <div id="pausa" hidden>
   <div class="chip">PAUSA</div>
-  <p>tocca o fai clic per riprendere<span class="pc"><br>W A S D o frecce: cammina · mouse: guarda · maiuscolo: corri<br>V: vedi la pedina · M: audio · L: live con la tastiera MIDI<br>C: condividi la mappa · R: registra il live (video + suono) · rotella o Z / X: stringe e allarga la vista<br>Tab: mappa grande · F: schermo intero · Esc: pausa</span></p>
+  <p><span class="solo-tocco">tocca lo schermo per riprendere</span><span class="solo-mouse">fai clic per riprendere</span><span class="pc"><br>W A S D o frecce: cammina · mouse: guarda · maiuscolo: corri<br>V: vedi la pedina · M: audio · L: live con la tastiera MIDI<br>C: condividi la mappa · R: registra il live (video + suono) · rotella o Z / X: stringe e allarga la vista<br>Tab: mappa grande · F: schermo intero · Esc: pausa</span></p>
   <button class="condividi" type="button">condividi la tua mappa (#mapmeout)</button>
   <button id="azzera" type="button">azzera la mappa dei dati scoperti</button>
   <div id="linkbox" hidden><span>link per gli altri</span><input id="sito" type="url" placeholder="indirizzo del sito, es. https://…" autocomplete="off"><button id="fa24" type="button">crea un link che dura 24 ore</button><button id="faper" type="button">il mio link perenne</button><code id="linkout"></code></div>
