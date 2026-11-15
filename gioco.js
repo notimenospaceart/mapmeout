@@ -740,7 +740,7 @@ let stato = 'intro', tGioco = 0, tp = 1, terza = false, ingresso = 0, nBuchi = 0
 const visti = new Set(); let traguardo = false, kFine = null, latoFine = 1;
 const scoperti = new Set(); const tracce = Array.from({ length: N }, () => []);
 const CHIAVE = 'mmo-into-the-hole-2';
-try { const s = JSON.parse(localStorage.getItem(CHIAVE) || 'null'); if (s && Array.isArray(s.d)) s.d.forEach(id => scoperti.add(id)); } catch (e) { }
+try { localStorage.removeItem(CHIAVE); } catch (e) { }   // a ogni apertura (o ricarica) del link si riparte da zero: dati e mappe
 function salva() { try { localStorage.setItem(CHIAVE, JSON.stringify({ d: [...scoperti] })); } catch (e) { } }
 
 const tasti = {}; let bloccato = false, eraBloccato = false, trascina = null;
@@ -1136,7 +1136,8 @@ function play() {
   setTimeout(() => { intro.hidden = true; try { vintro.pause(); } catch (e) { } }, 1500);
   $('#nd').textContent = scoperti.size;
   setTimeout(() => { const s = $('#saluto'); s.classList.add('su'); setTimeout(() => s.classList.remove('su'), 5200); }, 1700);
-  setTimeout(() => avviso(TOCCO ? 'tocca il pavimento: la pedina ci va · trascina il dito: ti guardi intorno' : 'W A S D o frecce: cammina · mouse: guarda · V: vedi la pedina · rotella: allarga la vista · L: live MIDI · R: registra', 11000), 7600);
+  setTimeout(() => { const c = $('#cuffieora'); c.classList.add('su'); setTimeout(() => c.classList.remove('su'), 2000); }, 8500);
+  setTimeout(() => avviso(TOCCO ? 'tocca il pavimento: la pedina ci va · trascina il dito: ti guardi intorno' : 'W A S D o frecce: cammina · mouse: guarda · V: vedi la pedina · rotella: allarga la vista · L: live MIDI · R: registra', 11000), 11000);
 }
 function pausa(si) {
   if (stato === 'intro') return;
