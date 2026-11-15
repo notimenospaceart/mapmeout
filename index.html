@@ -131,8 +131,8 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
 .tocco #suono,.tocco #live{display:none}
 .tocco #mirino{display:none}
 #tasti{display:none}
-.tocco #tasti{display:flex;position:absolute;right:12px;top:66px;flex-direction:column;align-items:flex-end;gap:8px;pointer-events:auto}
-#tasti button{font-family:var(--mono);font-size:12px;line-height:1;min-width:92px;height:40px;padding:0 12px;color:var(--ink);background:var(--velo);border:1.2px solid var(--ink);border-radius:20px;touch-action:manipulation}
+.tocco #tasti{display:block;position:absolute;left:50%;top:14px;transform:translateX(-50%);pointer-events:auto}
+#tasti button{font-family:var(--mono);font-size:12px;line-height:1;height:36px;padding:0 13px;white-space:nowrap;color:var(--ink);background:var(--velo);border:1.2px solid var(--ink);border-radius:20px;touch-action:manipulation}
 #bpausa i{display:inline-block;width:3px;height:11px;margin-right:3px;background:var(--ink);vertical-align:-1px}#bpausa i+i{margin-right:8px}
 .tocco #mappa{pointer-events:auto}
 .tocco #aiuto{bottom:auto;top:58px;font-size:11px}
@@ -152,7 +152,7 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
   <div id="dato"></div>
   <div id="aiuto"><span></span></div>
   <div id="stick" hidden><i></i></div>
-  <div id="tasti" class="solo-tocco"><button id="bpausa" type="button"><i></i><i></i>pausa</button><button id="bmappa" type="button">mappa +</button></div>
+  <div id="tasti" class="solo-tocco"><button id="bpausa" type="button"><i></i><i></i>pausa</button></div>
 </div>
 
 <div id="pausa" hidden>

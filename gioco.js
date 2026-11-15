@@ -1119,9 +1119,8 @@ function pausa(si) {
   else { stato = 'gioco'; elPausa.hidden = true; if (actx) actx.resume(); if (audioEl) { const p = audioEl.play(); if (p && p.catch) p.catch(() => { }); } if (vidLoop >= 0) { const p = vid.play(); if (p && p.catch) p.catch(() => { }); } chiediBlocco(); cv.focus(); }
 }
 elPausa.addEventListener('click', () => pausa(false));
-function mappaGrande() { const g = $('#mappabox').classList.toggle('grande'); $('#bmappa').textContent = g ? 'mappa −' : 'mappa +'; }
+function mappaGrande() { $('#mappabox').classList.toggle('grande'); }
 $('#bpausa').addEventListener('click', e => { e.stopPropagation(); if (stato === 'gioco') pausa(true); });
-$('#bmappa').addEventListener('click', e => { e.stopPropagation(); mappaGrande(); });
 if (TOCCO) $('#mappa').addEventListener('click', e => { e.stopPropagation(); mappaGrande(); });
 const DIDA_MAPPA = 'La mia mappa di MAP ME OUT — into the hole. #mapmeout';
 function immagineMappa() {
