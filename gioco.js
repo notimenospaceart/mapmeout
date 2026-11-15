@@ -1,5 +1,5 @@
 /* MAP ME OUT — into the hole
-   Un omino rosa attraversa, in prima persona e in loop, otto ambienti costruiti con il vocabolario delle tavole:
+   Un omino rosa attraversa, in prima persona e in loop, nove ambienti costruiti con il vocabolario delle tavole:
    schermi con cornice bianca, lenti, chip, lastre, semafori, sfere, cavi. Quando incontra un elemento, appare il suo dato.
    Tutto gira nel browser (WebGL2), senza librerie esterne. I dati sono in dati.js (misurati dai file originali). */
 (() => {
@@ -236,7 +236,7 @@ function atlante(w, h, disegna) {
 const SANS = '"MMO Sans", Helvetica, Arial, sans-serif', MONO = '"MMO Mono", Menlo, Consolas, monospace';
 
 /* ------------------------------------------------------------ il mondo */
-const W = 36, L = 60, T = 1.6, N = 8, Y0 = 0.014, LIMX = W / 2 - 1.7;
+const W = 36, L = 60, T = 1.6, N = 9, Y0 = 0.014, LIMX = W / 2 - 1.7;
 const C = { ink: [27, 27, 32], lime: [143, 210, 42], ciano: [63, 200, 224], magenta: [224, 52, 156], rosso: [216, 38, 46], nero: [31, 31, 36], oro: [168, 137, 74],
   mattone: [168, 80, 63], blu: [42, 63, 216], verde: [47, 143, 74], grigio: [154, 154, 154], rosa: [230, 107, 143], salmone: [224, 147, 135], malva: [181, 137, 146], azzurro: [143, 228, 232], oliva: [150, 160, 70] };
 const NOMI = { lime: C.lime, ciano: C.ciano, magenta: C.magenta, oliva: C.oliva, verde: C.verde };
@@ -248,11 +248,12 @@ const AMB = [
   { nome: 'notte', bg: [21, 21, 28], ink: [236, 236, 230], alto: 8, ombra: 0 },
   { nome: 'menta', bg: [221, 235, 226], ink: [27, 27, 32], alto: 16, ombra: .18 },
   { nome: 'sposa', bg: [232, 214, 216], pav: [190, 224, 140], soff: [214, 230, 206], ink: [27, 27, 32], alto: 12, ombra: .2 },
-  { nome: 'erba', bg: [250, 250, 247], pav: [137, 176, 62], tpav: 'assets/img/erba.jpg', tess: [137, 176, 62], soff: [255, 255, 255], ink: [27, 27, 32], alto: 11, ombra: .22 }
+  { nome: 'terra', bg: [104, 222, 222], pav: [122, 84, 56], tpav: 'assets/img/terra.jpg', spav: 7, tmuro: 'assets/img/muro5951.jpg', tess: [122, 84, 56], ink: [14, 30, 34], alto: 11, ombra: .26 },
+  { nome: 'erba', bg: [250, 250, 247], pav: [137, 176, 62], tpav: 'assets/img/erba.jpg', tintaPav: [1.3, 1.3, 1.12, 1], tess: [137, 176, 62], soff: [255, 255, 255], ink: [27, 27, 32], alto: 11, ombra: .22 }
 ];
 const TESS = j => AMB[j].tess || AMB[j].bg;      // il colore con cui un ambiente si riconosce nelle mappe
 const BUCHI = [{ cx: 0, hw: 2.2, h: 4.6, arco: false }, { cx: -7, hw: 1.8, h: 3.0, arco: true }, { cx: 8, hw: 2.6, h: 5.0, arco: false },
-               { cx: -3, hw: 2.0, h: 2.8, arco: true }, { cx: 10, hw: 1.7, h: 4.0, arco: false }, { cx: -9, hw: 2.4, h: 3.4, arco: true }, { cx: 5, hw: 2.1, h: 3.3, arco: true }, { cx: -5, hw: 2.3, h: 4.2, arco: false }];
+               { cx: -3, hw: 2.0, h: 2.8, arco: true }, { cx: 10, hw: 1.7, h: 4.0, arco: false }, { cx: -9, hw: 2.4, h: 3.4, arco: true }, { cx: 5, hw: 2.1, h: 3.3, arco: true }, { cx: -5, hw: 2.3, h: 4.2, arco: false }, { cx: 6, hw: 2.2, h: 4.4, arco: false }];
 const tono = (c, f) => [clamp(c[0] * f, 0, 255), clamp(c[1] * f, 0, 255), clamp(c[2] * f, 0, 255), 0];
 const con = (c, a) => [c[0], c[1], c[2], a];
 const rigaMis = m => `luce ${m[0]}  bordi ${m[1]}%` + (m[2] != null ? `  tinta ${m[2]}°` : '');
@@ -272,7 +273,7 @@ const QUADRI = [
 ];
 // i video della cartella «VIDEO DA METTERE SU PARETI» trovano da soli un muro libero
 (DATI.pareti || []).forEach((v, j) => {
-  const sposa = /sposa/i.test(v.nome), asp = v.w / v.h, h0 = asp < .8 ? 4.8 : asp > 1.2 ? 4.0 : 4.4, w = Math.min(8, h0 * asp), h = w / asp, giro = sposa ? [6] : [4, 1, 7, 3, 5, 0, 2, 6];
+  const sposa = /sposa/i.test(v.nome), asp = v.w / v.h, h0 = asp < .8 ? 4.8 : asp > 1.2 ? 4.0 : 4.4, w = Math.min(8, h0 * asp), h = w / asp, giro = sposa ? [6] : [4, 1, 8, 3, 5, 0, 2, 7, 6];
   for (let t = 0; t < giro.length; t++) {
     const amb = giro[(j + t) % giro.length];
     for (const z of [30, 14, 46]) for (const lato of [1, -1]) {
@@ -312,11 +313,19 @@ function costruisci(i) {
 
   /* --- la stanza: campiture piatte e fili di prospettiva --- */
   const cPav = A.pav ? con(A.pav, 0) : scuro ? tono(A.bg, 1.25) : tono(A.bg, .972), cMuro = tono(A.bg, 1), cSoff = A.soff ? con(A.soff, 0) : scuro ? tono(A.bg, .8) : tono(A.bg, 1.025);
-  if (A.tpav) { a.gp = new Geo(); a.gp.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], [255, 255, 255, 0], [0, 1, 0], [0, 0, W / 3, L / 3]); a.tpav = A.tpav; }
+  if (A.tpav) { a.gp = new Geo(); a.gp.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], [255, 255, 255, 0], [0, 1, 0], [0, 0, W / (A.spav || 3), L / (A.spav || 3)]); a.tpav = A.tpav; a.tintaPav = A.tintaPav || UNO; }
   else g.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], cPav, [0, 1, 0]);
-  g.quad([-W / 2, H, 0], [W / 2, H, 0], [W / 2, H, L], [-W / 2, H, L], cSoff, [0, -1, 0]);
-  g.quad([-W / 2, 0, 0], [-W / 2, 0, L], [-W / 2, H, L], [-W / 2, H, 0], cMuro, [1, 0, 0]);
-  g.quad([W / 2, 0, 0], [W / 2, 0, L], [W / 2, H, L], [W / 2, H, 0], cMuro, [-1, 0, 0]);
+  const SU = 40, SV = 64, BI = [255, 255, 255, 0];    // quanto è grande (in metri) una piastrella della texture dei muri
+  if (A.tmuro) { a.gm = new Geo(); a.tmuro = A.tmuro;
+    a.gm.quad([-W / 2, H, 0], [W / 2, H, 0], [W / 2, H, L], [-W / 2, H, L], BI, [0, -1, 0], [0, 0, W / SU, L / SV]);
+    a.gm.quad([-W / 2, 0, 0], [-W / 2, 0, L], [-W / 2, H, L], [-W / 2, H, 0], BI, [1, 0, 0], [0, 0, L / SU, H / SV]);
+    a.gm.quad([W / 2, 0, 0], [W / 2, 0, L], [W / 2, H, L], [W / 2, H, 0], BI, [-1, 0, 0], [0, 0, L / SU, H / SV]);
+  } else {
+    g.quad([-W / 2, H, 0], [W / 2, H, 0], [W / 2, H, L], [-W / 2, H, L], cSoff, [0, -1, 0]);
+    g.quad([-W / 2, 0, 0], [-W / 2, 0, L], [-W / 2, H, L], [-W / 2, H, 0], cMuro, [1, 0, 0]);
+    g.quad([W / 2, 0, 0], [W / 2, 0, L], [W / 2, H, L], [W / 2, H, 0], cMuro, [-1, 0, 0]);
+  }
+  if (prima.tmuro) { a.gmp = new Geo(); a.tmuroP = prima.tmuro; }
   const filo = con(ink, 95), filoF = con(ink, 150), e = .03;
   for (const sx of [-1, 1]) for (const y of [e, H - e]) l.seg([sx * (W / 2 - e), y, T / 2], [sx * (W / 2 - e), y, L - T / 2], filoF, 1.2);
   const passo = i === 3 ? 6 : 12;
@@ -325,12 +334,12 @@ function costruisci(i) {
 
   /* --- il muro d'ingresso col suo buco (z = 0) --- */
   const B = BUCHI[i], prof = profiloBuco(B), cDentro = scuro || mod(i - 1, N) === 4 ? [44, 44, 52, 0] : tono([(A.bg[0] + prima.bg[0]) / 2, (A.bg[1] + prima.bg[1]) / 2, (A.bg[2] + prima.bg[2]) / 2], .8);
-  const faccia = (z, Ht, col, nz) => {
-    g.quad([-W / 2, 0, z], [B.cx - B.hw, 0, z], [B.cx - B.hw, Ht, z], [-W / 2, Ht, z], col, [0, 0, nz]);
-    g.quad([B.cx + B.hw, 0, z], [W / 2, 0, z], [W / 2, Ht, z], [B.cx + B.hw, Ht, z], col, [0, 0, nz]);
-    for (let k = 1; k < prof.length - 2; k++) g.quad([prof[k][0], prof[k][1], z], [prof[k + 1][0], prof[k + 1][1], z], [prof[k + 1][0], Ht, z], [prof[k][0], Ht, z], col, [0, 0, nz]);
+  const faccia = (z, Ht, col, nz, gt) => {       // gt: la geometria con texture, se il muro di quell'ambiente ne ha una
+    const G = gt || g, c = gt ? BI : col, q = (x0, y0, x1, y1, yb) => G.quad([x0, y0, z], [x1, yb == null ? y0 : yb, z], [x1, y1, z], [x0, y1, z], c, [0, 0, nz], gt ? [x0 / SU, y0 / SV, x1 / SU, y1 / SV] : undefined);
+    q(-W / 2, 0, B.cx - B.hw, Ht); q(B.cx + B.hw, 0, W / 2, Ht);
+    for (let k = 1; k < prof.length - 2; k++) q(prof[k][0], prof[k][1], prof[k + 1][0], Ht, prof[k + 1][1]);
   };
-  faccia(T / 2, H, cMuro, 1); faccia(-T / 2, prima.alto, tono(prima.bg, 1), -1);
+  faccia(T / 2, H, cMuro, 1, a.gm); faccia(-T / 2, prima.alto, tono(prima.bg, 1), -1, a.gmp);
   for (let k = 0; k < prof.length - 1; k++) g.quad([prof[k][0], prof[k][1], -T / 2], [prof[k + 1][0], prof[k + 1][1], -T / 2], [prof[k + 1][0], prof[k + 1][1], T / 2], [prof[k][0], prof[k][1], T / 2], cDentro);
   l.poly(prof.map(p => [p[0], p[1], T / 2 + .012]), ink, 1.8); l.poly(prof.map(p => [p[0], p[1], -T / 2 - .012]), prima.ink, 1.8);
   for (const sx of [-1, 1]) l.seg([B.cx + sx * B.hw, Y0, -T / 2], [B.cx + sx * B.hw, Y0, T / 2], con(ink, 150), 1.2);
@@ -567,7 +576,7 @@ function costruisci(i) {
   }
   if (i === 5) for (const lato of [-1, 1]) onde(a, lato, [{ h: 5.2, a: .7, f: .16, p: lato * .7, c: [143, 228, 232] }, { h: 3.7, a: .55, f: .2, p: 1.9 * lato, c: [224, 147, 135] }, { h: 2.3, a: .45, f: .27, p: 3.1, c: [181, 137, 146] }, { h: 1.05, a: .4, f: .22, p: lato * 2.4, c: [224, 147, 135] }]);
 
-  a.mesh = mkMesh(a.g); a.lin = mkLin(a.l); a.meshO = mkMesh(a.go); if (a.gp) a.meshP = mkMesh(a.gp);
+  a.mesh = mkMesh(a.g); a.lin = mkLin(a.l); a.meshO = mkMesh(a.go); if (a.gp) a.meshP = mkMesh(a.gp); if (a.gm) a.meshM = mkMesh(a.gm); if (a.gmp) a.meshMP = mkMesh(a.gmp);
   a.texAtl = texDa(ATL, true, TOCCO ? .5 : 1);
   return a;
 }
@@ -940,7 +949,7 @@ try { const c = parseFloat(localStorage.getItem('mmo-campo-2')); if (c >= 45 && 
 function setCampo(v) { campo = clamp(Math.round(v), 45, 118); try { localStorage.setItem('mmo-campo-2', campo); } catch (e) { } avviso(`vista ${campo}°` + (campo === 118 ? ' (grandangolo)' : campo === 68 ? ' (normale)' : ''), 1400); }
 addEventListener('wheel', e => { if (stato !== 'gioco') return; e.preventDefault(); setCampo(campo + Math.sign(e.deltaY) * 3); }, { passive: false });
 function usaMesh() { gl.useProgram(PM.p); gl.uniformMatrix4fv(PM.u.uVP, false, VP); gl.uniform3fv(PM.u.uL, LUCE); gl.uniform1i(PM.u.uT, 0); gl.activeTexture(gl.TEXTURE0); }
-const LUCE = norm([-.4, .82, -.42]), UNO = [1, 1, 1, 1], UVI = [0, 0, 1, 1], TINTA_ERBA = [1.3, 1.3, 1.12, 1];
+const LUCE = norm([-.4, .82, -.42]), UNO = [1, 1, 1, 1], UVI = [0, 0, 1, 1], MURO_ATTESA = [.41, .87, .87, 1];
 function dis(mesh, M, modo, tinta, t, uv, NM) {
   gl.uniformMatrix4fv(PM.u.uM, false, M); gl.uniformMatrix4fv(PM.u.uNM, false, NM || M); gl.uniform1i(PM.u.uModo, modo); gl.uniform4fv(PM.u.uTinta, tinta || UNO); gl.uniform4fv(PM.u.uUV, uv || UVI);
   if (t) gl.bindTexture(gl.TEXTURE_2D, t); gl.bindVertexArray(mesh.vao); gl.drawArrays(gl.TRIANGLES, 0, mesh.n);
@@ -1052,7 +1061,8 @@ function disegna() {
   usaMesh();
   for (const [k, a, Mk] of stanze) {
     dis(a.mesh, Mk, 0);
-    if (a.meshP) { const tp2 = texRipetuta(a.tpav); if (tp2) dis(a.meshP, Mk, 1, TINTA_ERBA, tp2); else dis(a.meshP, Mk, 0, [.54, .69, .24, 1]); }
+    if (a.meshP) { const tp2 = texRipetuta(a.tpav); if (tp2) dis(a.meshP, Mk, 1, a.tintaPav, tp2); else dis(a.meshP, Mk, 0, AMB[a.i].pav.map(v => v / 255).concat(1)); }
+    for (const [m, u] of [[a.meshM, a.tmuro], [a.meshMP, a.tmuroP]]) if (m) { const tm = texRipetuta(u); if (tm) dis(m, Mk, 1, UNO, tm); else dis(m, Mk, 0, MURO_ATTESA); }
     const pressoQui = Math.abs(k - kk) <= 1;
     gl.enable(gl.POLYGON_OFFSET_FILL); gl.polygonOffset(-2, -6);
     for (const m of a.mostre) {
@@ -1157,14 +1167,14 @@ function immagineMappa() {
   x.font = `700 62px ${SANS}`; x.textBaseline = 'alphabetic'; x.fillText('Map Me Out', 96, 132);
   x.fillStyle = '#1f1f24'; x.fillRect(98, 152, 232, 44); x.fillStyle = '#fff'; x.font = `400 24px ${MONO}`; x.fillText('into the hole', 114, 182); x.fillStyle = ink;
   const d = new Date(); x.font = `400 24px ${MONO}`; x.textAlign = 'right'; x.fillText(`${String(d.getDate()).padStart(2, '0')}.${String(d.getMonth() + 1).padStart(2, '0')}.${d.getFullYear()}`, 984, 126); x.fillText('la mia mappa', 984, 160); x.textAlign = 'left';
-  const cols = 4, lw = 196, lh = lw * L / W, gx = 30, gy = 64, x0 = (1080 - (cols * lw + (cols - 1) * gx)) / 2, y0 = 268; let tot = 0, sc = 0;
+  const cols = N > 8 ? 5 : 4, lw = N > 8 ? 160 : 196, lh = lw * L / W, gx = N > 8 ? 22 : 30, gy = 64, x0 = (1080 - (cols * lw + (cols - 1) * gx)) / 2, y0 = 268; let tot = 0, sc = 0;
   for (let j = 0; j < N; j++) {
     const riga = Math.floor(j / cols), nr = Math.min(cols, N - riga * cols), ox = (riga === 0 ? x0 : (1080 - (nr * lw + (nr - 1) * gx)) / 2) + (j % cols) * (lw + gx), oy = y0 + riga * (lh + gy), s = lw / W, X = v => ox + (W / 2 - v) * s, Z = v => oy + (L - v) * s, A = AMB[j];
     x.fillStyle = `rgb(${TESS(j).join(',')})`; x.fillRect(ox, oy, lw, lh); x.strokeStyle = ink; x.lineWidth = 2; x.strokeRect(ox, oy, lw, lh);
     const scuro = j === 4, ci = scuro ? '#ecece6' : ink; x.fillStyle = ci; x.strokeStyle = ci; x.lineWidth = 1.5;
     for (const o of AMBI[j].oggetti) { tot++; const si = scoperti.has(o.id); if (si) sc++; if (o.tipo === 'buco') continue; const px = X(o.x), pz = Z(o.z); if (si) { x.beginPath(); x.arc(px, pz, 4.2, 0, 7); x.fill(); } else { x.globalAlpha = .3; x.beginPath(); x.arc(px, pz, 2.6, 0, 7); x.stroke(); x.globalAlpha = 1; } }
     const tr = tracce[j]; x.strokeStyle = '#e66b8f'; x.lineWidth = 4; x.lineJoin = x.lineCap = 'round'; x.beginPath(); tr.forEach((p, k) => { if (k && Math.hypot(p[0] - tr[k - 1][0], p[1] - tr[k - 1][1]) < 4) x.lineTo(X(p[0]), Z(p[1])); else x.moveTo(X(p[0]), Z(p[1])); }); x.stroke();
-    x.fillStyle = ink; x.font = `400 20px ${MONO}`; x.fillText(`${j + 1} · ${A.nome}`, ox, oy + lh + 26);
+    x.fillStyle = ink; x.font = `400 ${N > 8 ? 18 : 20}px ${MONO}`; x.fillText(`${j + 1} · ${A.nome}`, ox, oy + lh + 26);
   }
   x.fillStyle = ink; x.font = `400 26px ${MONO}`; x.fillText(`dati scoperti ${sc} / ${tot}   buchi attraversati ${nBuchi}`, 96, 1164);
   x.font = `700 58px ${SANS}`; x.fillText('#mapmeout', 96, 1244); x.font = `italic 400 28px ${SANS}`; x.textAlign = 'right'; x.fillText('notimenospaceart', 984, 1244);
