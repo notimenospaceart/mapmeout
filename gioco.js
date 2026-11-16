@@ -157,7 +157,7 @@ uniform mat4 uVP, uM, uNM; out vec3 vN; out vec2 vU; out vec4 vC;
 void main(){ vec4 w = uM*vec4(aP,1.); vN = mat3(uNM)*aN; vU = aU; vC = aC; gl_Position = uVP*w; }`,
 `#version 300 es
 precision highp float;
-in vec3 vN; in vec2 vU; in vec4 vC; uniform sampler2D uT; uniform int uModo; uniform vec4 uTinta; uniform vec4 uUV; uniform vec3 uL; out vec4 o;
+in vec3 vN; in vec2 vU; in vec4 vC; uniform sampler2D uT; uniform vec2 uRisM; uniform int uModo; uniform vec4 uTinta; uniform vec4 uUV; uniform vec3 uL; out vec4 o;
 void main(){
   vec3 n = normalize(vN); if(!gl_FrontFacing) n = -n;
   float l = dot(n, uL)*.5+.5;
@@ -165,7 +165,13 @@ void main(){
   if(uModo==0){ o = vec4(vC.rgb*uTinta.rgb*sh, 1.); }
   else if(uModo==1){ vec2 uv = vec2(mix(uUV.x,uUV.z,vU.x), mix(uUV.y,uUV.w,vU.y)); o = vec4(texture(uT,uv).rgb*uTinta.rgb*sh, 1.); }
   else if(uModo==2){ vec4 t = texture(uT, vU); o = vec4(t.rgb*vC.rgb, t.a*uTinta.a); }
-  else if(uModo==4){ float r = length(vU*2.-1.), p = uUV.x; float a = smoothstep(.06,0.,abs(r-p)) + .55*smoothstep(.045,0.,abs(r-p*.62)); a *= (1.-p)*(1.-p)*step(r,1.); o = vec4(uTinta.rgb, a*uTinta.a); }
+  else if(uModo==4){ vec2 c = vU*2.-1.; float r = length(c), p = uUV.x; vec2 n = r > 1e-4 ? c/r : vec2(0.);
+    float e1 = smoothstep(.22,0.,abs(r-p)), e2 = .6*smoothstep(.16,0.,abs(r-p*.6)), f = (1.-p)*(1.-p)*step(r,1.)*smoothstep(1.,.86,r);
+    float wv = (e1*sin((r-p)*34.) + e2*sin((r-p*.6)*42.))*f;
+    mat2 J = mat2(dFdx(vU), dFdy(vU)); vec2 px = abs(determinant(J)) > 1e-12 ? inverse(J)*(n*wv*uUV.y) : vec2(0.); px = clamp(px, -70., 70.);
+    vec3 s = texture(uT, (gl_FragCoord.xy + px)/uRisM).rgb;
+    s = mix(s, uTinta.rgb, clamp(abs(wv)*1.4,0.,1.)*uTinta.a);
+    o = vec4(s, clamp((e1+e2)*f*2.,0.,1.)); }
   else { float r = length(vU*2.-1.); float a = smoothstep(1.,0.,r); o = vec4(vC.rgb*uTinta.rgb, a*a*vC.a*uTinta.a); }
 }`);
 const PL = compila(`#version 300 es
@@ -660,14 +666,15 @@ function suona(k, forza) {
   if (SUONI[k].st === 2) parteSuono(k); else { if (SUONI[k].st === 3) SUONI[k].st = 0; caricaSuono(k); }
 }
 function setMuto(m) { muto = m; if (guad && actx) guad.gain.setTargetAtTime(volume() * (stato === 'pausa' ? .22 : 1), actx.currentTime, .12); }
+let texScena = null;
 const ONDE = []; let mediaL = 0, tOnda = 0, bufF = null, bufP = null;        // i tocchi sulle superfici: come un sasso nello stagno, appena visibili
 function nuovaOnda() {
   const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), d = 3 + Math.random() * 12, s = (Math.random() - .5) * 14, dove = Math.random();
-  let x = clamp(P.x + fx * d + fz * s, -W / 2 + 1, W / 2 - 1), z = P.z + fz * d - fx * s; const A = AMB[mod(Math.floor(z / L), N)], H = A.alto, r = 1.1 + Math.random() * 1.7; let M;
+  let x = clamp(P.x + fx * d + fz * s, -W / 2 + 1, W / 2 - 1), z = P.z + fz * d - fx * s; const A = AMB[mod(Math.floor(z / L), N)], H = A.alto, r = 1.5 + Math.random() * 2.2; let M;
   if (dove < .5) M = M4.cat(M4.tr(x, .026, z), M4.rx(-Math.PI / 2));
   else if (dove < .85) { const lato = Math.random() < .5 ? -1 : 1; M = M4.cat(M4.tr(lato * (W / 2 - .03), 1 + Math.random() * Math.max(1, H - 2.2), z), M4.ry(Math.PI / 2)); }
   else M = M4.cat(M4.tr(x, H - .03, z), M4.rx(Math.PI / 2));
-  ONDE.push({ M: M4.mul(M, M4.sc(2 * r, 2 * r, 1)), t0: tGioco, vita: 1.5 + Math.random() * .9, col: [A.ink[0] / 255, A.ink[1] / 255, A.ink[2] / 255, .17] }); if (ONDE.length > 14) ONDE.shift();
+  ONDE.push({ M: M4.mul(M, M4.sc(2 * r, 2 * r, 1)), t0: tGioco, vita: 1.8 + Math.random() * 1.1, forza: .03 + Math.random() * .02, col: [A.ink[0] / 255, A.ink[1] / 255, A.ink[2] / 255, .3] }); if (ONDE.length > 14) ONDE.shift();
 }
 function ascolta(dt) {
   let v = 0;
@@ -1099,7 +1106,6 @@ function disegna() {
   // trasparenze: ombre, aloni, scritte
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
   for (const [k, a, Mk] of stanze) { if (a.meshO.n) dis(a.meshO, Mk, 3); }
-  for (let k = ONDE.length - 1; k >= 0; k--) { const o = ONDE[k], p = (tGioco - o.t0) / o.vita; if (p >= 1) { ONDE.splice(k, 1); continue; } dis(U.quad, o.M, 4, o.col, null, [p, 0, 0, 0]); }
   if (A.ombra > 0) dis(U.quadOmbra, M4.cat(M4.tr(P.x, .009, P.z), M4.rx(-Math.PI / 2), M4.sc(1.3, 1.3, 1)), 3);
   for (const [k, a, Mk] of stanze) { if (a.meshA.n) dis(a.meshA, Mk, 2, UNO, a.texAtl); }
 
@@ -1111,6 +1117,14 @@ function disegna() {
     for (const d of a.din) disL(U.ingrL, M4.cat(Mk, d.M, M4.rz(d.vel * tGioco)));
   }
   if (meta) disL(U.metaL, M4.cat(M4.tr(meta.x, Y0 + .01, meta.z), M4.rx(-Math.PI / 2), M4.sc(.5 + .08 * Math.sin(tGioco * 6), .5 + .08 * Math.sin(tGioco * 6), 1)));
+  // le onde dei suoni a caso: nella loro zona lo spazio si increspa (si ridisegna, spostato, ciò che c'è dietro)
+  for (let k = ONDE.length - 1; k >= 0; k--) if ((tGioco - ONDE[k].t0) / ONDE[k].vita >= 1) ONDE.splice(k, 1);
+  if (ONDE.length) {
+    if (!texScena) { texScena = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, texScena); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE); gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE); }
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, texScena); gl.copyTexImage2D(gl.TEXTURE_2D, 0, gl.RGB, 0, 0, w, h, 0);
+    usaMesh(); gl.uniform2f(PM.u.uRisM, w, h);
+    for (const o of ONDE) dis(U.quad, o.M, 4, o.col, texScena, [(tGioco - o.t0) / o.vita, o.forza, 0, 0]);
+  }
   gl.depthMask(true); gl.disable(gl.BLEND); gl.bindVertexArray(null);
 
   // HUD: il dato di fianco all'elemento (mai sopra), col suo filo
