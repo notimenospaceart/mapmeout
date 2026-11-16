@@ -165,6 +165,7 @@ void main(){
   if(uModo==0){ o = vec4(vC.rgb*uTinta.rgb*sh, 1.); }
   else if(uModo==1){ vec2 uv = vec2(mix(uUV.x,uUV.z,vU.x), mix(uUV.y,uUV.w,vU.y)); o = vec4(texture(uT,uv).rgb*uTinta.rgb*sh, 1.); }
   else if(uModo==2){ vec4 t = texture(uT, vU); o = vec4(t.rgb*vC.rgb, t.a*uTinta.a); }
+  else if(uModo==4){ float r = length(vU*2.-1.), p = uUV.x; float a = smoothstep(.06,0.,abs(r-p)) + .55*smoothstep(.045,0.,abs(r-p*.62)); a *= (1.-p)*(1.-p)*step(r,1.); o = vec4(uTinta.rgb, a*uTinta.a); }
   else { float r = length(vU*2.-1.); float a = smoothstep(1.,0.,r); o = vec4(vC.rgb*uTinta.rgb, a*a*vC.a*uTinta.a); }
 }`);
 const PL = compila(`#version 300 es
@@ -636,7 +637,7 @@ function suonoACaso() { if (SUONI.length < 2) return BASE; let k; do { k = Math.
 function avviaAudio() {
   if (actx) return;
   try {
-    actx = new (window.AudioContext || window.webkitAudioContext)(); guad = actx.createGain(); guad.gain.value = 0; anal = actx.createAnalyser(); anal.fftSize = 1024; bufA = new Uint8Array(anal.fftSize);
+    actx = new (window.AudioContext || window.webkitAudioContext)(); guad = actx.createGain(); guad.gain.value = 0; anal = actx.createAnalyser(); anal.fftSize = 1024; anal.smoothingTimeConstant = .45; bufA = new Uint8Array(anal.fftSize);
     busLive = actx.createGain(); busLive.gain.value = .5; const comp = actx.createDynamicsCompressor(); uscita = comp;
     guad.connect(comp); busLive.connect(comp); comp.connect(anal); anal.connect(actx.destination); if (actx.state === 'suspended') actx.resume();
     guad.gain.linearRampToValueAtTime(volume(), actx.currentTime + 2.5);
@@ -658,10 +659,25 @@ function suona(k, forza) {
   if (k === suonoOra && !forza) return; suonoOra = k; $('#suono').textContent = 'suono · ' + SUONI[k].nome; if (!actx) return;
   if (SUONI[k].st === 2) parteSuono(k); else { if (SUONI[k].st === 3) SUONI[k].st = 0; caricaSuono(k); }
 }
-function setMuto(m) { muto = m; if (guad && actx) guad.gain.setTargetAtTime(volume(), actx.currentTime, .12); }
+function setMuto(m) { muto = m; if (guad && actx) guad.gain.setTargetAtTime(volume() * (stato === 'pausa' ? .22 : 1), actx.currentTime, .12); }
+const ONDE = []; let mediaL = 0, tOnda = 0, bufF = null, bufP = null;        // i tocchi sulle superfici: come un sasso nello stagno, appena visibili
+function nuovaOnda() {
+  const fx = Math.sin(P.yaw), fz = Math.cos(P.yaw), d = 3 + Math.random() * 12, s = (Math.random() - .5) * 14, dove = Math.random();
+  let x = clamp(P.x + fx * d + fz * s, -W / 2 + 1, W / 2 - 1), z = P.z + fz * d - fx * s; const A = AMB[mod(Math.floor(z / L), N)], H = A.alto, r = 1.1 + Math.random() * 1.7; let M;
+  if (dove < .5) M = M4.cat(M4.tr(x, .026, z), M4.rx(-Math.PI / 2));
+  else if (dove < .85) { const lato = Math.random() < .5 ? -1 : 1; M = M4.cat(M4.tr(lato * (W / 2 - .03), 1 + Math.random() * Math.max(1, H - 2.2), z), M4.ry(Math.PI / 2)); }
+  else M = M4.cat(M4.tr(x, H - .03, z), M4.rx(Math.PI / 2));
+  ONDE.push({ M: M4.mul(M, M4.sc(2 * r, 2 * r, 1)), t0: tGioco, vita: 1.5 + Math.random() * .9, col: [A.ink[0] / 255, A.ink[1] / 255, A.ink[2] / 255, .17] }); if (ONDE.length > 14) ONDE.shift();
+}
 function ascolta(dt) {
   let v = 0;
   if (anal) { anal.getByteTimeDomainData(bufA); let q = 0; for (let i = 0; i < bufA.length; i++) { const x = (bufA[i] - 128) / 128; q += x * x; } v = clamp(Math.sqrt(q / bufA.length) * 3.2, 0, 1); }
+  if (anal) {                                   // le note: dove lo spettro cresce di colpo. Solo coi suoni a caso: una nota, un tocco
+    if (!bufF) { bufF = new Uint8Array(anal.frequencyBinCount); bufP = new Uint8Array(anal.frequencyBinCount); }
+    anal.getByteFrequencyData(bufF); let fl = 0; for (let i = 2; i < 220; i++) { const df = bufF[i] - bufP[i]; if (df > 0) fl += df; bufP[i] = bufF[i]; } fl /= 218;
+    if (suonoOra >= 0 && suonoOra !== BASE && SUONI[suonoOra].src && fl > mediaL * 1.5 + .8 && tGioco - tOnda > .17) { tOnda = tGioco; nuovaOnda(); }
+    mediaL = lerp(mediaL, fl, 1 - Math.exp(-dt * 2.5));
+  }
   livello = lerp(livello, v, 1 - Math.exp(-dt * 14)); picco = Math.max(picco * Math.exp(-dt * .5), livello);
 }
 // live: la tastiera MIDI suona dentro il gioco; il timbro lo decide il loop che hai davanti (luce → apertura, tinta → onda, bordi → attacco, vuoto → coda)
@@ -1083,6 +1099,7 @@ function disegna() {
   // trasparenze: ombre, aloni, scritte
   gl.enable(gl.BLEND); gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA); gl.depthMask(false);
   for (const [k, a, Mk] of stanze) { if (a.meshO.n) dis(a.meshO, Mk, 3); }
+  for (let k = ONDE.length - 1; k >= 0; k--) { const o = ONDE[k], p = (tGioco - o.t0) / o.vita; if (p >= 1) { ONDE.splice(k, 1); continue; } dis(U.quad, o.M, 4, o.col, null, [p, 0, 0, 0]); }
   if (A.ombra > 0) dis(U.quadOmbra, M4.cat(M4.tr(P.x, .009, P.z), M4.rx(-Math.PI / 2), M4.sc(1.3, 1.3, 1)), 3);
   for (const [k, a, Mk] of stanze) { if (a.meshA.n) dis(a.meshA, Mk, 2, UNO, a.texAtl); }
 
@@ -1151,8 +1168,8 @@ function play() {
 }
 function pausa(si) {
   if (stato === 'intro') return;
-  if (si) { stato = 'pausa'; elPausa.hidden = false; if (document.pointerLockElement) document.exitPointerLock(); if (actx && actx.state === 'running') actx.suspend(); if (audioEl) audioEl.pause(); try { vid.pause(); } catch (e) { } salva(); }
-  else { stato = 'gioco'; elPausa.hidden = true; if (actx) actx.resume(); if (audioEl) { const p = audioEl.play(); if (p && p.catch) p.catch(() => { }); } if (vidLoop >= 0) { const p = vid.play(); if (p && p.catch) p.catch(() => { }); } chiediBlocco(); cv.focus(); }
+  if (si) { stato = 'pausa'; elPausa.hidden = false; if (document.pointerLockElement) document.exitPointerLock(); if (actx && guad) guad.gain.setTargetAtTime(volume() * .22, actx.currentTime, .25); if (audioEl) audioEl.pause(); try { vid.pause(); } catch (e) { } salva(); }
+  else { stato = 'gioco'; elPausa.hidden = true; if (actx) { actx.resume(); if (guad) guad.gain.setTargetAtTime(volume(), actx.currentTime, .25); } if (audioEl) { const p = audioEl.play(); if (p && p.catch) p.catch(() => { }); } if (vidLoop >= 0) { const p = vid.play(); if (p && p.catch) p.catch(() => { }); } chiediBlocco(); cv.focus(); }
 }
 elPausa.addEventListener('click', () => pausa(false));
 $('#traguardo').addEventListener('click', e => { e.stopPropagation(); condividi(); });
@@ -1203,7 +1220,7 @@ if (SUL_MAC && $('#linkbox')) { $('#linkbox').hidden = false;
 }
 $('#azzera').addEventListener('click', e => { e.stopPropagation(); scoperti.clear(); tracce.forEach(t => t.length = 0); salva(); $('#nd').textContent = 0; e.currentTarget.textContent = 'mappa azzerata'; setTimeout(() => { e.currentTarget.textContent = 'azzera la mappa dei dati scoperti'; }, 1800); });
 addEventListener('pagehide', salva);
-document.addEventListener('visibilitychange', () => { if (document.hidden && stato === 'gioco') pausa(true); });
+document.addEventListener('visibilitychange', () => { if (document.hidden) { if (stato === 'gioco') pausa(true); if (actx && actx.state === 'running') actx.suspend(); } else if (actx && stato !== 'intro') actx.resume(); });   // scheda nascosta: silenzio; in pausa a scheda aperta: il suono resta basso
 
 let tPrec = 0, dtVero = 0;
 function giro(t) {
