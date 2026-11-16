@@ -1,5 +1,5 @@
 /* MAP ME OUT — into the hole
-   Un omino rosa attraversa, in prima persona e in loop, nove ambienti costruiti con il vocabolario delle tavole:
+   Un omino rosa attraversa, in prima persona e in loop, dieci ambienti costruiti con il vocabolario delle tavole:
    schermi con cornice bianca, lenti, chip, lastre, semafori, sfere, cavi. Quando incontra un elemento, appare il suo dato.
    Tutto gira nel browser (WebGL2), senza librerie esterne. I dati sono in dati.js (misurati dai file originali). */
 (() => {
@@ -243,7 +243,7 @@ function atlante(w, h, disegna) {
 const SANS = '"MMO Sans", Helvetica, Arial, sans-serif', MONO = '"MMO Mono", Menlo, Consolas, monospace';
 
 /* ------------------------------------------------------------ il mondo */
-const W = 36, L = 60, T = 1.6, N = 9, Y0 = 0.014, LIMX = W / 2 - 1.7;
+const W = 36, L = 60, T = 1.6, N = 10, Y0 = 0.014, LIMX = W / 2 - 1.7;
 const C = { ink: [27, 27, 32], lime: [143, 210, 42], ciano: [63, 200, 224], magenta: [224, 52, 156], rosso: [216, 38, 46], nero: [31, 31, 36], oro: [168, 137, 74],
   mattone: [168, 80, 63], blu: [42, 63, 216], verde: [47, 143, 74], grigio: [154, 154, 154], rosa: [230, 107, 143], salmone: [224, 147, 135], malva: [181, 137, 146], azzurro: [143, 228, 232], oliva: [150, 160, 70] };
 const NOMI = { lime: C.lime, ciano: C.ciano, magenta: C.magenta, oliva: C.oliva, verde: C.verde };
@@ -256,11 +256,12 @@ const AMB = [
   { nome: 'menta', bg: [221, 235, 226], ink: [27, 27, 32], alto: 16, ombra: .18 },
   { nome: 'sposa', bg: [232, 214, 216], pav: [190, 224, 140], soff: [214, 230, 206], ink: [27, 27, 32], alto: 12, ombra: .2 },
   { nome: 'terra', bg: [104, 222, 222], pav: [122, 84, 56], tpav: 'assets/img/terra.jpg', spav: 7, tmuro: 'assets/img/muro5951.jpg', tess: [122, 84, 56], ink: [14, 30, 34], alto: 11, ombra: .26 },
-  { nome: 'erba', bg: [250, 250, 247], pav: [137, 176, 62], tpav: 'assets/img/erba.jpg', tintaPav: [1.3, 1.3, 1.12, 1], tess: [137, 176, 62], soff: [255, 255, 255], ink: [27, 27, 32], alto: 11, ombra: .22 }
+  { nome: 'erba', bg: [250, 250, 247], pav: [137, 176, 62], tpav: 'assets/img/erba.jpg', tintaPav: [1.3, 1.3, 1.12, 1], tess: [137, 176, 62], soff: [255, 255, 255], ink: [27, 27, 32], alto: 11, ombra: .22 },
+  { nome: 'dune', bg: [226, 226, 224], pav: [214, 214, 211], tpav: 'assets/img/sabbia.jpg', spav: 12, tmuro: 'assets/img/dune_muro.jpg', su: 36, sv: 11, soffLiscio: true, dune: true, tess: [178, 178, 176], soff: [222, 222, 221], ink: [27, 27, 32], alto: 11, ombra: .24 }
 ];
 const TESS = j => AMB[j].tess || AMB[j].bg;      // il colore con cui un ambiente si riconosce nelle mappe
 const BUCHI = [{ cx: 0, hw: 2.2, h: 4.6, arco: false }, { cx: -7, hw: 1.8, h: 3.0, arco: true }, { cx: 8, hw: 2.6, h: 5.0, arco: false },
-               { cx: -3, hw: 2.0, h: 2.8, arco: true }, { cx: 10, hw: 1.7, h: 4.0, arco: false }, { cx: -9, hw: 2.4, h: 3.4, arco: true }, { cx: 5, hw: 2.1, h: 3.3, arco: true }, { cx: -5, hw: 2.3, h: 4.2, arco: false }, { cx: 6, hw: 2.2, h: 4.4, arco: false }];
+               { cx: -3, hw: 2.0, h: 2.8, arco: true }, { cx: 10, hw: 1.7, h: 4.0, arco: false }, { cx: -9, hw: 2.4, h: 3.4, arco: true }, { cx: 5, hw: 2.1, h: 3.3, arco: true }, { cx: -5, hw: 2.3, h: 4.2, arco: false }, { cx: 6, hw: 2.2, h: 4.4, arco: false }, { cx: -7, hw: 2.3, h: 4.3, arco: false }];
 const tono = (c, f) => [clamp(c[0] * f, 0, 255), clamp(c[1] * f, 0, 255), clamp(c[2] * f, 0, 255), 0];
 const con = (c, a) => [c[0], c[1], c[2], a];
 const rigaMis = m => `luce ${m[0]}  bordi ${m[1]}%` + (m[2] != null ? `  tinta ${m[2]}°` : '');
@@ -280,7 +281,7 @@ const QUADRI = [
 ];
 // i video della cartella «VIDEO DA METTERE SU PARETI» trovano da soli un muro libero
 (DATI.pareti || []).forEach((v, j) => {
-  const sposa = /sposa/i.test(v.nome), asp = v.w / v.h, h0 = asp < .8 ? 4.8 : asp > 1.2 ? 4.0 : 4.4, w = Math.min(8, h0 * asp), h = w / asp, giro = sposa ? [6] : [4, 1, 8, 3, 5, 0, 2, 7, 6];
+  const sposa = /sposa/i.test(v.nome), asp = v.w / v.h, h0 = asp < .8 ? 4.8 : asp > 1.2 ? 4.0 : 4.4, w = Math.min(8, h0 * asp), h = w / asp, giro = sposa ? [6] : [4, 1, 8, 3, 5, 9, 0, 2, 7, 6];
   for (let t = 0; t < giro.length; t++) {
     const amb = giro[(j + t) % giro.length];
     for (const z of [30, 14, 46]) for (const lato of [1, -1]) {
@@ -320,11 +321,22 @@ function costruisci(i) {
 
   /* --- la stanza: campiture piatte e fili di prospettiva --- */
   const cPav = A.pav ? con(A.pav, 0) : scuro ? tono(A.bg, 1.25) : tono(A.bg, .972), cMuro = tono(A.bg, 1), cSoff = A.soff ? con(A.soff, 0) : scuro ? tono(A.bg, .8) : tono(A.bg, 1.025);
-  if (A.tpav) { a.gp = new Geo(); a.gp.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], [255, 255, 255, 0], [0, 1, 0], [0, 0, W / (A.spav || 3), L / (A.spav || 3)]); a.tpav = A.tpav; a.tintaPav = A.tintaPav || UNO; }
+  if (A.tpav) { a.gp = new Geo(); a.gp.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], [255, 255, 255, 0], [0, 1, 0], [0, 0, W / (A.spav || 3), L / (A.spav || 3)]); a.tpav = A.tpav; a.tintaPav = A.tintaPav || UNO;
+    if (A.dune) {                                  // sabbia ammucchiata contro le pareti: piccole dune vere, con la loro ombra
+      const sp = A.spav || 3, larg = 2.6, nz = 48, nd = 6, om = [255, 255, 255, 255];
+      const alt = (s, z, d) => { const t = z / L * Math.PI * 2, hz = Math.max(.06, .42 + .3 * Math.sin(t * 3 + s * 1.3) + .2 * Math.sin(t * 7 + s * 2.1) + .1 * Math.sin(t * 13 + s)); const u = 1 - d / larg; return hz * u * u * (3 - 2 * u) * Math.min(1, z / 2.5, (L - z) / 2.5); };
+      for (const s of [-1, 1]) for (let iz = 0; iz < nz; iz++) for (let id = 0; id < nd; id++) {
+        const z0 = T / 2 + (L - T) * iz / nz, z1 = T / 2 + (L - T) * (iz + 1) / nz, d0 = larg * id / nd, d1 = larg * (id + 1) / nd, x0 = s * (W / 2 - d0), x1 = s * (W / 2 - d1);
+        const p = [[x0, alt(s, z0, d0) + .004, z0], [x1, alt(s, z0, d1) + .004, z0], [x1, alt(s, z1, d1) + .004, z1], [x0, alt(s, z1, d0) + .004, z1]];
+        let nr = norm(cross(sub(p[1], p[0]), sub(p[3], p[0]))); if (nr[1] < 0) nr = nr.map(v => -v);
+        a.gp.quad(p[0], p[1], p[2], p[3], om, nr, [(x0 + W / 2) / sp, z0 / sp, (x1 + W / 2) / sp, z1 / sp]);
+      }
+    } }
   else g.quad([-W / 2, 0, 0], [W / 2, 0, 0], [W / 2, 0, L], [-W / 2, 0, L], cPav, [0, 1, 0]);
-  const SU = 40, SV = 64, BI = [255, 255, 255, 0];    // quanto è grande (in metri) una piastrella della texture dei muri
+  const SU = A.su || 40, SV = A.sv || 64, BI = [255, 255, 255, 0];    // quanto è grande (in metri) una piastrella della texture dei muri
   if (A.tmuro) { a.gm = new Geo(); a.tmuro = A.tmuro;
-    a.gm.quad([-W / 2, H, 0], [W / 2, H, 0], [W / 2, H, L], [-W / 2, H, L], BI, [0, -1, 0], [0, 0, W / SU, L / SV]);
+    if (A.soffLiscio) g.quad([-W / 2, H, 0], [W / 2, H, 0], [W / 2, H, L], [-W / 2, H, L], cSoff, [0, -1, 0]);
+    else a.gm.quad([-W / 2, H, 0], [W / 2, H, 0], [W / 2, H, L], [-W / 2, H, L], BI, [0, -1, 0], [0, 0, W / SU, L / SV]);
     a.gm.quad([-W / 2, 0, 0], [-W / 2, 0, L], [-W / 2, H, L], [-W / 2, H, 0], BI, [1, 0, 0], [0, 0, L / SU, H / SV]);
     a.gm.quad([W / 2, 0, 0], [W / 2, 0, L], [W / 2, H, L], [W / 2, H, 0], BI, [-1, 0, 0], [0, 0, L / SU, H / SV]);
   } else {
@@ -341,12 +353,12 @@ function costruisci(i) {
 
   /* --- il muro d'ingresso col suo buco (z = 0) --- */
   const B = BUCHI[i], prof = profiloBuco(B), cDentro = scuro || mod(i - 1, N) === 4 ? [44, 44, 52, 0] : tono([(A.bg[0] + prima.bg[0]) / 2, (A.bg[1] + prima.bg[1]) / 2, (A.bg[2] + prima.bg[2]) / 2], .8);
-  const faccia = (z, Ht, col, nz, gt) => {       // gt: la geometria con texture, se il muro di quell'ambiente ne ha una
+  const faccia = (z, Ht, col, nz, gt, SU, SV) => {       // gt: la geometria con texture, se il muro di quell'ambiente ne ha una
     const G = gt || g, c = gt ? BI : col, q = (x0, y0, x1, y1, yb) => G.quad([x0, y0, z], [x1, yb == null ? y0 : yb, z], [x1, y1, z], [x0, y1, z], c, [0, 0, nz], gt ? [x0 / SU, y0 / SV, x1 / SU, y1 / SV] : undefined);
     q(-W / 2, 0, B.cx - B.hw, Ht); q(B.cx + B.hw, 0, W / 2, Ht);
     for (let k = 1; k < prof.length - 2; k++) q(prof[k][0], prof[k][1], prof[k + 1][0], Ht, prof[k + 1][1]);
   };
-  faccia(T / 2, H, cMuro, 1, a.gm); faccia(-T / 2, prima.alto, tono(prima.bg, 1), -1, a.gmp);
+  faccia(T / 2, H, cMuro, 1, a.gm, SU, SV); faccia(-T / 2, prima.alto, tono(prima.bg, 1), -1, a.gmp, prima.su || 40, prima.sv || 64);
   for (let k = 0; k < prof.length - 1; k++) g.quad([prof[k][0], prof[k][1], -T / 2], [prof[k + 1][0], prof[k + 1][1], -T / 2], [prof[k + 1][0], prof[k + 1][1], T / 2], [prof[k][0], prof[k][1], T / 2], cDentro);
   l.poly(prof.map(p => [p[0], p[1], T / 2 + .012]), ink, 1.8); l.poly(prof.map(p => [p[0], p[1], -T / 2 - .012]), prima.ink, 1.8);
   for (const sx of [-1, 1]) l.seg([B.cx + sx * B.hw, Y0, -T / 2], [B.cx + sx * B.hw, Y0, T / 2], con(ink, 150), 1.2);
