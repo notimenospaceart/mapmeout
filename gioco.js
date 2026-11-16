@@ -21,7 +21,9 @@ const SALE = 'mmo·sposa·1485';
 function firma(t) { let h = 2166136261; for (const c of SALE + t) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).padStart(7, '0').slice(0, 5); }
 const codice24 = () => { const t = (Math.floor(Date.now() / 36e5) + 24).toString(36); return 'g' + t + firma(t); };
 const CODICE_PERENNE = 'p' + firma('perenne');
-function linkValido() { const h = location.hash.replace('#', ''); if (h === CODICE_PERENNE) return true; if (h[0] !== 'g' || h.length < 7) return false; const t = h.slice(1, -5); return firma(t) === h.slice(-5) && parseInt(t, 36) * 36e5 > Date.now(); }
+let aperturaLive = 0;                             // link «d…»: vale solo nel giorno del live (24 ore), non prima
+function linkValido() { const h = location.hash.replace('#', ''); if (h === CODICE_PERENNE) return true;
+  if (h[0] === 'd' && h.length >= 7) { const t = h.slice(1, -5), fine = parseInt(t, 36) * 36e5; if (firma('d' + t) !== h.slice(-5) || fine <= Date.now()) return false; if (Date.now() < fine - 864e5) { aperturaLive = fine - 864e5; return false; } return true; } if (h[0] !== 'g' || h.length < 7) return false; const t = h.slice(1, -5); return firma(t) === h.slice(-5) && parseInt(t, 36) * 36e5 > Date.now(); }
 // ogni visitatore ha la sua disposizione dello spazio: il suo passaggio è già una variabile
 let SEME = 0;
 if (WEB) { try { SEME = parseInt(localStorage.getItem('mmo-seme') || '0', 10) || 0; if (!SEME) { SEME = 1 + Math.floor(Math.random() * 9998); localStorage.setItem('mmo-seme', SEME); } } catch (e) { SEME = 1 + Math.floor(Math.random() * 9998); } }
@@ -1179,7 +1181,9 @@ function avanti() {
   else if (fase === 'intro') play();
 }
 document.querySelectorAll('.avanti').forEach(b => b.addEventListener('click', avanti));
-if (WEB && !linkValido()) { fase = 'scaduto'; $('#benvenuto').hidden = true; $('#scaduto').hidden = false; }
+if (WEB && !linkValido()) { fase = 'scaduto'; $('#benvenuto').hidden = true;
+  if (aperturaLive) { const d = new Date(aperturaLive); $('#quando').textContent = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) + ', dalle ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); $('#presto').hidden = false; setTimeout(() => location.reload(), Math.min(aperturaLive - Date.now() + 1500, 2e9)); }
+  else $('#scaduto').hidden = false; }
 function play() {
   if (stato !== 'intro' || fase !== 'intro') return; stato = 'gioco'; if (TOCCO) elStick.hidden = false;
   avviaAudio(); chiediBlocco();
