@@ -46,6 +46,9 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #incorso:before,#durata:before{content:"";display:inline-block;width:.62em;height:.62em;border-radius:50%;background:#e8212b;box-shadow:0 0 .5em #e8212b;margin-right:.45em;vertical-align:.02em;animation:lampo 1s steps(1,end) infinite}
 #incorso[hidden],#durata[hidden]{display:none}
 #testa #durata{color:#d8262e;opacity:1;margin-bottom:3px;font-weight:700}
+.tocco #testa{display:flex;flex-direction:column}.tocco #testa #durata{order:9;margin:6px 0 0;max-width:62vw;white-space:normal;line-height:1.35}
+#testa #durata.cantiere{color:var(--ink)}#incorso.cantiere{color:var(--ink)}
+#incorso.cantiere:before,#durata.cantiere:before{background:repeating-linear-gradient(45deg,#1b1b20 0 2px,#f0c22e 2px 4px);border-radius:1px;box-shadow:none;animation:none}
 #play:hover,#play:focus-visible{transform:translateX(-50%) scale(1.06);outline:none}
 #play i{position:absolute;right:1em;top:50%;width:.62em;height:.62em;margin-top:-.31em;border-radius:50%;background:#e8212b;box-shadow:0 0 .6em #e8212b;animation:lampo 1s steps(1,end) infinite}
 @keyframes lampo{50%{opacity:0}}

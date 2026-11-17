@@ -21,10 +21,10 @@ const SALE = 'mmo·sposa·1485';
 function firma(t) { let h = 2166136261; for (const c of SALE + t) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).padStart(7, '0').slice(0, 5); }
 const codice24 = () => { const t = (Math.floor(Date.now() / 36e5) + 24).toString(36); return 'g' + t + firma(t); };
 const CODICE_PERENNE = 'p' + firma('perenne');
-let aperturaLive = 0, inizioLive = 0;             // link «d…»: vale solo nel giorno del live (24 ore), non prima
+let aperturaLive = 0, inizioLive = 0, dopoLive = 0;   // dopoLive: finito il live, lo stesso link apre lo spazio in costruzione             // link «d…»: vale solo nel giorno del live (24 ore), non prima
 const [CODICE, CHIAVE_REGIA] = location.hash.replace('#', '').split('.');   // dopo il punto c'è la chiave della regia: solo nel tuo link
 function linkValido() { const h = CODICE; if (h === CODICE_PERENNE) return true;
-  if (h[0] === 'd' && h.length >= 7) { const t = h.slice(1, -5), fine = parseInt(t, 36) * 36e5; if (firma('d' + t) !== h.slice(-5) || fine <= Date.now()) return false; if (Date.now() < fine - 864e5) { aperturaLive = fine - 864e5; return false; } inizioLive = fine - 864e5; return true; } if (h[0] !== 'g' || h.length < 7) return false; const t = h.slice(1, -5); return firma(t) === h.slice(-5) && parseInt(t, 36) * 36e5 > Date.now(); }
+  if (h[0] === 'd' && h.length >= 7) { const t = h.slice(1, -5), fine = parseInt(t, 36) * 36e5; if (firma('d' + t) !== h.slice(-5)) return false; if (fine <= Date.now()) { dopoLive = fine - 864e5; return true; } if (Date.now() < fine - 864e5) { aperturaLive = fine - 864e5; return false; } inizioLive = fine - 864e5; return true; } if (h[0] !== 'g' || h.length < 7) return false; const t = h.slice(1, -5); return firma(t) === h.slice(-5) && parseInt(t, 36) * 36e5 > Date.now(); }
 // ogni visitatore ha la sua disposizione dello spazio: il suo passaggio è già una variabile
 let SEME = 0;
 if (WEB) { try { SEME = parseInt(localStorage.getItem('mmo-seme') || '0', 10) || 0; if (!SEME) { SEME = 1 + Math.floor(Math.random() * 9998); localStorage.setItem('mmo-seme', SEME); } } catch (e) { SEME = 1 + Math.floor(Math.random() * 9998); } }
@@ -292,6 +292,15 @@ const QUADRI = [
       QUADRI.push({ fatto: v, amb, lato, z, w, h, y: (amb === 2 || amb === 5 ? 6.2 : amb === 6 ? 2.7 : 1.1) + h / 2, img: v.img, vq: v.f, titolo: 'VIDEO · ' + v.nome.replace(/ - animata$/, ''), sotto: 'video a parete, in movimento quando sei in questo ambiente', p: `${v.w}×${v.h} px · ${it(v.fps)} fps · ${it(v.dur, 1)} s` });
     }
     if (QUADRI.some(q => q.fatto === v)) break;
+  }
+});
+
+(DATI.mappe || []).forEach((m, j) => {
+  const giro = [4, 1, 8, 3, 5, 9, 0, 2, 7, 6], asp = (m.w || 4) / (m.h || 5), h = 2.9, w = Math.min(4, h * asp);
+  for (let t = 0; t < giro.length * 7 && !QUADRI.some(q => q.fatto === m); t++) {
+    const amb = giro[(j + t) % giro.length], z = [22, 38, 8, 52, 30, 14, 46][Math.floor(t / giro.length) % 7], lato = (j + Math.floor(t / giro.length)) % 2 ? -1 : 1;
+    if (QUADRI.some(q => q.amb === amb && q.lato === lato && Math.abs(q.z - z) < q.w / 2 + w / 2 + 1.6)) continue;
+    QUADRI.push({ fatto: m, amb, lato, z, w, h, y: (amb === 2 || amb === 5 ? 6.2 : amb === 6 ? 2.7 : 1.1) + h / 2, img: m.img, titolo: 'MAPPA · passaggio ' + (j + 1), sotto: 'la mappa di chi ha attraversato lo spazio e l\'ha condivisa', p: m.data ? 'arrivata il ' + m.data : `${m.w}×${m.h} px` });
   }
 });
 
@@ -1028,7 +1037,7 @@ function mostraDato(o) {
 let tViva = 0; function rigaViva(t) { if (tGioco - tViva < .1) return; tViva = tGioco; const c = elDato.querySelector('code.m'); if (c) c.textContent = t; }
 let tAvviso = 0; function avviso(t, ms = 6000) { elAiuto.firstElementChild.textContent = t; elAiuto.classList.add('su'); clearTimeout(tAvviso); tAvviso = setTimeout(() => elAiuto.classList.remove('su'), ms); }
 function cambiaAmbiente(ai) {
-  const A = AMB[ai]; $('#amb').textContent = `ambiente ${ai + 1}/${N} · ${A.nome}`;
+  const A = AMB[ai]; $('#amb').textContent = `${TOCCO ? '' : 'ambiente '}${ai + 1}/${N} · ${A.nome}`;   // al telefono più corta: non arriva al tasto pausa
   hud.style.setProperty('--ink', `rgb(${A.ink.join(',')})`); hud.style.setProperty('--velo', `rgba(${A.bg.join(',')},.84)`);
 }
 const mp = $('#mappa'), mx = mp.getContext('2d');
@@ -1281,8 +1290,15 @@ if (WEB && !linkValido()) { fase = 'scaduto'; $('#benvenuto').hidden = true;
   if (aperturaLive) { const d = new Date(aperturaLive); $('#quando').textContent = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) + ', dalle ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); $('#presto').hidden = false; setTimeout(() => location.reload(), Math.min(aperturaLive - Date.now() + 1500, 2e9)); }
   else $('#scaduto').hidden = false; }
 const durataLive = () => { const m = Math.floor((Date.now() - inizioLive) / 6e4); return m < 1 ? 'pochi secondi' : m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
+const giornoLive = () => new Date(dopoLive).toLocaleDateString('it-IT', { day: 'numeric', month: 'long' });
+function aggCantiere() {                          // dopo il live: niente tempo né regia, lo spazio è un cantiere che cresce con i passaggi
+  $('#incorso').textContent = 'IL LIVE DEL ' + giornoLive().toUpperCase() + ' È FINITO'; $('#incorso').classList.add('cantiere'); $('#incorso').hidden = false;
+  $('#cuffie b').textContent = 'LO SPAZIO È IN COSTRUZIONE'; $('#play').firstChild.textContent = 'Entra nello spazio in costruzione';
+  $('#durata').textContent = 'in costruzione · il live del ' + giornoLive() + ' è finito'; $('#durata').classList.add('cantiere'); $('#durata').hidden = false;
+}
 function aggTempoLive() { if (!inizioLive) return; const s = 'LIVE IN CORSO DA ' + durataLive().toUpperCase(); $('#incorso').textContent = s; $('#incorso').hidden = false; $('#durata').textContent = 'live in corso da ' + durataLive() + (Date.now() - ultimaNotaRemota < 15000 ? ' · suona notimenospaceart' : ''); $('#durata').hidden = false; }
 if (WEB && inizioLive) { aggTempoLive(); setInterval(aggTempoLive, 15000); }
+if (WEB && dopoLive) aggCantiere();
 function play() {
   if (stato !== 'intro' || fase !== 'intro') return; stato = 'gioco'; if (TOCCO) elStick.hidden = false;
   avviaAudio(); chiediBlocco();
@@ -1294,7 +1310,7 @@ function play() {
   $('#nd').textContent = scoperti.size;
   setTimeout(() => { const s = $('#saluto'); s.classList.add('su'); setTimeout(() => s.classList.remove('su'), 5200); }, 1700);
   setTimeout(() => { const c = $('#cuffieora'); c.classList.add('su'); setTimeout(() => c.classList.remove('su'), 2000); }, 8500);
-  setTimeout(() => avviso(TOCCO ? 'tocca il pavimento: la pedina ci va · trascina il dito: ti guardi intorno' : 'W A S D o frecce: cammina · mouse: guarda · V: vedi la pedina · rotella: allarga la vista · L: live MIDI · R: registra', 11000), 11000);
+  if (!TOCCO) setTimeout(() => avviso('W A S D o frecce: cammina · mouse: guarda · V: vedi la pedina · rotella: allarga la vista · L: live MIDI · R: registra', 11000), 11000);
 }
 function pausa(si) {
   if (stato === 'intro') return;
