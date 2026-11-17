@@ -656,6 +656,7 @@ const volume = () => muto ? 0 : (live ? .28 : .9);
 const BASE = Math.max(0, SUONI.findIndex(s => s.n === '1468'));     // il suono di tutto l'ambiente
 function suonoACaso() { if (SUONI.length < 2) return BASE; let k; do { k = Math.floor(Math.random() * SUONI.length); } while (k === BASE || (SUONI.length > 2 && k === suonoOra)); return k; }
 function avviaAudio() {
+  try { if (navigator.audioSession) navigator.audioSession.type = 'playback'; } catch (e) { }   // iPhone: si sente anche col tasto silenzioso attivo
   if (actx) return;
   try {
     actx = new (window.AudioContext || window.webkitAudioContext)(); guad = actx.createGain(); guad.gain.value = 0; anal = actx.createAnalyser(); anal.fftSize = 1024; anal.smoothingTimeConstant = .45; bufA = new Uint8Array(anal.fftSize);
@@ -1305,7 +1306,7 @@ $('#traguardo').addEventListener('click', e => { e.stopPropagation(); condividi(
 function mappaGrande() { $('#mappabox').classList.toggle('grande'); }
 $('#bpausa').addEventListener('click', e => { e.stopPropagation(); if (stato === 'gioco') pausa(true); });
 if (TOCCO) $('#mappa').addEventListener('click', e => { e.stopPropagation(); mappaGrande(); });
-const DIDA_MAPPA = 'La mia mappa di MAP ME OUT — into the hole. #mapmeout';
+const DIDA_MAPPA = 'La mia mappa di MAP ME OUT — into the hole @notimenospaceart #mapmeout';   // con la menzione la mappa arriva a notimenospaceart
 function immagineMappa() {
   const c = document.createElement('canvas'); c.width = 1080; c.height = 1350; const x = c.getContext('2d'), ink = '#1b1b20';
   x.fillStyle = '#f6f6f3'; x.fillRect(0, 0, 1080, 1350); x.strokeStyle = ink; x.fillStyle = ink; x.lineWidth = 2;
@@ -1323,7 +1324,7 @@ function immagineMappa() {
     x.fillStyle = ink; x.font = `400 ${N > 8 ? 18 : 20}px ${MONO}`; x.fillText(`${j + 1} · ${A.nome}`, ox, oy + lh + 26);
   }
   x.fillStyle = ink; x.font = `400 26px ${MONO}`; x.fillText(`dati scoperti ${sc} / ${tot}   buchi attraversati ${nBuchi}`, 96, 1164);
-  x.font = `700 58px ${SANS}`; x.fillText('#mapmeout', 96, 1244); x.font = `italic 400 28px ${SANS}`; x.textAlign = 'right'; x.fillText('notimenospaceart', 984, 1244);
+  x.font = `700 58px ${SANS}`; x.fillText('#mapmeout', 96, 1244); x.font = `italic 400 28px ${SANS}`; x.textAlign = 'right'; x.fillText('@notimenospaceart', 984, 1244);
   return c;
 }
 function condividi() {                           // un tocco: l'immagine della mappa col testo già pronto
