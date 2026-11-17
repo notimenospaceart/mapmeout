@@ -786,13 +786,17 @@ function aggRegia() {
 }
 async function avviaRegia() {                     // solo con la chiave giusta nel link: diventi la regia del live
   if (!inizioLive || !CHIAVE_REGIA || !window.crypto || !crypto.subtle) return false;
-  try {
-    const k = await crypto.subtle.importKey('jwk', { ...REGIA_PUB, d: CHIAVE_REGIA, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
-    const prova = ENC.encode('mmo'), f = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, k, prova);
-    const p = await crypto.subtle.importKey('jwk', REGIA_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
-    if (!(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, p, f, prova))) return false;
-    regia = k;
-  } catch (e) { return false; }
+  // la chiave copiata a mano o dal telefono può avere un trattino d'a-capo o una I scambiata con una l: provo anche quelle
+  const c0 = decodeURIComponent(CHIAVE_REGIA).replace(/[\s\u00ad]/g, ''), cand = [...new Set([c0, c0.replace(/-/g, ''), c0.replace(/l/g, 'I'), c0.replace(/-/g, '').replace(/l/g, 'I'), c0.replace(/I/g, 'l')])];
+  let pub; try { pub = await crypto.subtle.importKey('jwk', REGIA_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']); } catch (e) { return false; }
+  for (const d of cand) {
+    try {
+      const k = await crypto.subtle.importKey('jwk', { ...REGIA_PUB, d, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+      const prova = ENC.encode('mmo'), f = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, k, prova);
+      if (await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, pub, f, prova)) { regia = k; break; }
+    } catch (e) { }
+  }
+  if (!regia) return false;
   ponti = PONTI.map(u => ponte(u, (t, s) => { if (t.endsWith('/ci-sono')) { ascoltatori.set(s.slice(0, 12), Date.now()); aggRegia(); } }, aggRegia));
   ponti.forEach(p => p.iscrivi(ARGOMENTO + 'ci-sono'));
   setInterval(aggRegia, 5000); setInterval(spedisci, 30); aggRegia(); return true;
