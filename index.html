@@ -42,6 +42,10 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #play{text-shadow:0 0 .45em #ff2a35,0 0 1em #ff2a35,0 0 1.8em #ff2a35;position:absolute;left:50%;bottom:11.5%;transform:translateX(-50%);font-size:min(2.05vh,3.6vw);letter-spacing:.07em;white-space:nowrap;padding:.9em 2.5em .86em 1.5em;transition:transform .15s ease}
 #cuffie{position:absolute;left:50%;bottom:calc(11.5% + min(8.2vh,14.4vw));transform:translateX(-50%);white-space:nowrap;font-family:var(--mono);font-size:min(1.55vh,2.8vw);color:var(--ink);background:rgba(246,246,243,.84);padding:.5em .8em;pointer-events:none;text-align:center;line-height:1.5}
 #cuffie b{display:block;font-family:var(--sans);letter-spacing:.12em;font-size:1.15em}
+#incorso{display:block;font-style:normal;font-family:var(--sans);font-weight:700;letter-spacing:.1em;color:#d8262e;font-size:1.15em}
+#incorso:before,#durata:before{content:"";display:inline-block;width:.62em;height:.62em;border-radius:50%;background:#e8212b;box-shadow:0 0 .5em #e8212b;margin-right:.45em;vertical-align:.02em;animation:lampo 1s steps(1,end) infinite}
+#incorso[hidden],#durata[hidden]{display:none}
+#testa #durata{color:#d8262e;opacity:1;margin-bottom:3px;font-weight:700}
 #play:hover,#play:focus-visible{transform:translateX(-50%) scale(1.06);outline:none}
 #play i{position:absolute;right:1em;top:50%;width:.62em;height:.62em;margin-top:-.31em;border-radius:50%;background:#e8212b;box-shadow:0 0 .6em #e8212b;animation:lampo 1s steps(1,end) infinite}
 @keyframes lampo{50%{opacity:0}}
@@ -174,7 +178,7 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
 
 <div id="hud" hidden>
   <i class="piu a"></i><i class="piu b"></i><i class="piu c"></i><i class="piu d"></i>
-  <div id="testa"><b>MAP ME OUT</b><code>into the hole</code><code id="amb"></code></div>
+  <div id="testa"><code id="durata" hidden></code><b>MAP ME OUT</b><code>into the hole</code><code id="amb"></code></div>
   <div id="conta"><code>dati <b id="nd">0</b> / <span id="nt">0</span></code><code id="buchi">buchi 0</code><code id="suono"></code><code id="live"></code><code id="rec" style="color:#d8262e"></code></div>
   <div id="mirino"></div>
   <div id="mappabox"><canvas id="mappa"></canvas><span id="mappat">mappa</span><button id="condividi" class="condividi" type="button">condividi la mappa</button></div>
@@ -233,7 +237,7 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
     <video id="vintro" src="assets/intro/intro.mp4" poster="assets/intro/intro.jpg" muted loop playsinline autoplay preload="auto"></video>
     <div id="titolo"><h1>Map<br>Me<br>Out</h1><p>into the hole</p><div id="crediti"><em>a cura di notimenospaceart</em><q>Non raggiungere mai la Sposa</q></div></div>
     <button id="suonointro" type="button">audio · on</button>
-    <div id="cuffie"><b>DURATA LIVE: 24 h</b>Per un’esperienza immersiva indossare le cuffie</div>
+    <div id="cuffie"><em id="incorso" hidden></em><b>DURATA LIVE: 24 h</b>Per un’esperienza immersiva indossare le cuffie</div>
     <button id="play" class="chip" type="button">Entra nel LIVE-3D condiviso<i></i></button>
     <div id="sottoplay">tocca il tasto · o premi invio</div>
   </div>

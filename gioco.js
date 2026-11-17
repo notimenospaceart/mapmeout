@@ -21,9 +21,10 @@ const SALE = 'mmo·sposa·1485';
 function firma(t) { let h = 2166136261; for (const c of SALE + t) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).padStart(7, '0').slice(0, 5); }
 const codice24 = () => { const t = (Math.floor(Date.now() / 36e5) + 24).toString(36); return 'g' + t + firma(t); };
 const CODICE_PERENNE = 'p' + firma('perenne');
-let aperturaLive = 0;                             // link «d…»: vale solo nel giorno del live (24 ore), non prima
-function linkValido() { const h = location.hash.replace('#', ''); if (h === CODICE_PERENNE) return true;
-  if (h[0] === 'd' && h.length >= 7) { const t = h.slice(1, -5), fine = parseInt(t, 36) * 36e5; if (firma('d' + t) !== h.slice(-5) || fine <= Date.now()) return false; if (Date.now() < fine - 864e5) { aperturaLive = fine - 864e5; return false; } return true; } if (h[0] !== 'g' || h.length < 7) return false; const t = h.slice(1, -5); return firma(t) === h.slice(-5) && parseInt(t, 36) * 36e5 > Date.now(); }
+let aperturaLive = 0, inizioLive = 0;             // link «d…»: vale solo nel giorno del live (24 ore), non prima
+const [CODICE, CHIAVE_REGIA] = location.hash.replace('#', '').split('.');   // dopo il punto c'è la chiave della regia: solo nel tuo link
+function linkValido() { const h = CODICE; if (h === CODICE_PERENNE) return true;
+  if (h[0] === 'd' && h.length >= 7) { const t = h.slice(1, -5), fine = parseInt(t, 36) * 36e5; if (firma('d' + t) !== h.slice(-5) || fine <= Date.now()) return false; if (Date.now() < fine - 864e5) { aperturaLive = fine - 864e5; return false; } inizioLive = fine - 864e5; return true; } if (h[0] !== 'g' || h.length < 7) return false; const t = h.slice(1, -5); return firma(t) === h.slice(-5) && parseInt(t, 36) * 36e5 > Date.now(); }
 // ogni visitatore ha la sua disposizione dello spazio: il suo passaggio è già una variabile
 let SEME = 0;
 if (WEB) { try { SEME = parseInt(localStorage.getItem('mmo-seme') || '0', 10) || 0; if (!SEME) { SEME = 1 + Math.floor(Math.random() * 9998); localStorage.setItem('mmo-seme', SEME); } } catch (e) { SEME = 1 + Math.floor(Math.random() * 9998); } }
@@ -704,8 +705,8 @@ function ascolta(dt) {
 // live: la tastiera MIDI suona dentro il gioco; il timbro lo decide il loop che hai davanti (luce → apertura, tinta → onda, bordi → attacco, vuoto → coda)
 const voci = new Map(), tenute = new Set(); let sustain = false, timbro = { onda: 'sawtooth', taglio: 1800, att: .01, ril: .5, det: 6 };
 function timbroDa(Lp) { const t = Lp.mis[2], onde = ['sine', 'triangle', 'sawtooth', 'square']; timbro = { onda: t == null ? 'triangle' : onde[Math.floor(t / 90) % 4], taglio: 300 + Math.pow(Lp.mis[0] / 255, 2) * 5200, att: .004 + (1 - Math.min(Lp.mis[1], 30) / 30) * .09, ril: .25 + (Lp.vuoto != null ? Lp.vuoto : 50) / 100 * 1.1, det: 3 + (Lp.sat || 10) * .25 }; }
-function notaSu(n, vel) {
-  if (!actx || !live) return; notaGiu(n, true);
+function notaSu(n, vel, daRegia) {
+  if (!actx || !(live || daRegia)) return; notaGiu(n, true);
   const t = actx.currentTime, f = 440 * Math.pow(2, (n - 69) / 12), basso = n < 48, g = actx.createGain(), fl = actx.createBiquadFilter(), v = vel / 127, osc = [];
   fl.type = 'lowpass'; fl.frequency.value = basso ? 420 : timbro.taglio * (.5 + v); fl.Q.value = basso ? .7 : 4;
   const mk = (tipo, fr, det) => { const o = actx.createOscillator(); o.type = tipo; o.frequency.value = fr; o.detune.value = det; o.connect(fl); o.start(t); osc.push(o); };
@@ -718,21 +719,111 @@ function notaGiu(n, subito) {
   voci.delete(n); tenute.delete(n); const t = actx.currentTime, r = subito ? .03 : (vc.basso ? .14 : timbro.ril);
   vc.g.gain.cancelScheduledValues(t); vc.g.gain.setTargetAtTime(0, t, r / 3); vc.osc.forEach(o => { try { o.stop(t + r * 2 + .1); } catch (e) { } });
 }
-function midi(e) {
-  const st = e.data[0] & 0xf0, a = e.data[1], b = e.data[2];
-  if (st === 0x90 && b > 0) notaSu(a, b); else if (st === 0x80 || (st === 0x90 && b === 0)) notaGiu(a);
+function midiEv(st, a, b, daRegia) {
+  if (st === 0x90 && b > 0) notaSu(a, b, daRegia); else if (st === 0x80 || (st === 0x90 && b === 0)) notaGiu(a);
   else if (st === 0xb0 && a === 64) { sustain = b >= 64; if (!sustain) [...tenute].forEach(n => notaGiu(n)); }
+  else if (st === 0xb0 && a === 123) { [...voci.keys()].forEach(n => notaGiu(n, true)); }
 }
-function aggLive() { $('#live').textContent = live ? ('live · ' + (midiNome || 'nessuna tastiera collegata')) : ''; }
+function midi(e) {
+  const st = e.data[0] & 0xf0, a = e.data[1], b = e.data[2]; midiEv(st, a, b);
+  if (regia && live && (st === 0x90 || st === 0x80 || (st === 0xb0 && a === 64))) codaNote.push([st, a, b, performance.now()]);   // in onda: parte anche verso chi è collegato
+}
+function aggLive() { if (regia) return aggRegia(); $('#live').textContent = live ? ('live · ' + (midiNome || 'nessuna tastiera collegata')) : ''; }
 function setLive(on) {
-  if (!on) { live = false; [...voci.keys()].forEach(n => notaGiu(n, true)); setMuto(muto); aggLive(); avviso('live spento', 1600); return; }
+  if (!on) { live = false; [...voci.keys()].forEach(n => notaGiu(n, true)); if (regia) codaNote.push([0xb0, 123, 0, performance.now()]); setMuto(muto); aggLive(); avviso('live spento', 1600); return; }
+  if (inizioLive && !regia) { avviso('durante il live la tastiera la suona notimenospaceart: ascolta', 4000); return; }
   if (!navigator.requestMIDIAccess) { avviso('il live con la tastiera MIDI funziona in Brave o Chrome, non in questo browser', 6500); return; }
   navigator.requestMIDIAccess().then(acc => {
     const lega = () => { const nomi = []; acc.inputs.forEach(inp => { inp.onmidimessage = midi; nomi.push(inp.name); }); midiNome = nomi.join(', '); aggLive(); };
     lega(); acc.onstatechange = lega; live = true; setMuto(muto); aggLive();
-    avviso(midiNome ? `live acceso · ${midiNome} · il timbro cambia a ogni loop` : 'live acceso · collega la tastiera MIDI', 6500);
+    avviso(regia ? (midiNome ? `in onda · ${midiNome} · chi è collegato ti sente` : 'in onda · collega la tastiera MIDI') : midiNome ? `live acceso · ${midiNome} · il timbro cambia a ogni loop` : 'live acceso · collega la tastiera MIDI', 6500);
   }).catch(() => avviso('il browser non ha dato accesso al MIDI', 5000));
 }
+
+/* --- regia del live: le note della tua tastiera arrivano a tutti quelli collegati allo stesso link del live.
+   Passano da due ponti pubblici (MQTT su WebSocket); ogni pacchetto è firmato con la chiave che c'è solo nel tuo link,
+   e chi ascolta suona solo le note con la firma giusta. */
+const PONTI = ['wss://broker.hivemq.com:8884/mqtt', 'wss://test.mosquitto.org:8081/mqtt'];   // provati dal Mac: 20-30 ms
+const REGIA_PUB = { kty: 'EC', crv: 'P-256', x: 'wQlcxN4bekyHfEtTmNIQu2BySynMgBKcnMIW5qSnpzs', y: 'rFqK1_TNtQ2fr4TtWOOE2iFAYfUvRN-SXtKX3jBLuyQ' };
+const SESS = Math.random().toString(36).slice(2, 10), ENC = new TextEncoder(), DEC = new TextDecoder();
+const b64 = u => btoa(String.fromCharCode(...new Uint8Array(u))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+const unb64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
+let regia = null, chiavePub = null, ponti = [], nSeq = 0, codaNote = [], ultimaNotaRemota = 0, ascoltatori = new Map(), visteNote = new Set(), rifTempo = null, rifSess = '', perdute = 0;
+const ARGOMENTO = 'notimenospaceart/mapmeout/' + (CODICE || 'x') + '/';
+function ponte(url, alMessaggio, aperto) {             // un client MQTT minimo: collega, iscrive, pubblica, si ricollega da solo
+  let ws = null, buf = new Uint8Array(0), vivo = false, prova = 0; const iscr = [];
+  const str = s => { const b = ENC.encode(s); return [b.length >> 8, b.length & 255, ...b]; };
+  const lun = n => { const o = []; do { let d = n % 128; n = Math.floor(n / 128); if (n > 0) d |= 128; o.push(d); } while (n > 0); return o; };
+  const pac = (tipo, c) => new Uint8Array([tipo, ...lun(c.length), ...c]);
+  const manda = p => { if (ws && ws.readyState === 1) try { ws.send(p); } catch (e) { } };
+  const iscrivi = (t, id) => manda(pac(0x82, [0, id, ...str(t), 0]));
+  function leggi() {
+    while (buf.length >= 2) {
+      let m = 1, v = 0, i = 1, d; do { if (i >= buf.length) return; d = buf[i++]; v += (d & 127) * m; m *= 128; } while (d & 128);
+      if (buf.length < i + v) return; const tipo = buf[0], c = buf.slice(i, i + v); buf = buf.slice(i + v);
+      if ((tipo & 0xf0) === 0x20) { vivo = true; prova = 0; iscr.forEach((t, k) => iscrivi(t, k + 1)); if (aperto) aperto(); }
+      else if ((tipo & 0xf0) === 0x30) { const tl = (c[0] << 8) | c[1]; let k = 2 + tl; if (tipo & 6) k += 2; try { alMessaggio(DEC.decode(c.subarray(2, 2 + tl)), DEC.decode(c.subarray(k))); } catch (e) { } }
+    }
+  }
+  function apri() {
+    try { ws = new WebSocket(url, 'mqtt'); } catch (e) { return ancora(); }
+    ws.binaryType = 'arraybuffer';
+    ws.onopen = () => manda(pac(0x10, [...str('MQTT'), 4, 2, 0, 60, ...str('mmo-' + SESS + '-' + Math.random().toString(36).slice(2, 6))]));
+    ws.onmessage = ev => { const d = new Uint8Array(ev.data), n = new Uint8Array(buf.length + d.length); n.set(buf); n.set(d, buf.length); buf = n; leggi(); };
+    ws.onclose = () => { vivo = false; buf = new Uint8Array(0); ancora(); };
+    ws.onerror = () => { try { ws.close(); } catch (e) { } };
+  }
+  function ancora() { prova = Math.min(prova + 1, 5); setTimeout(apri, 800 * prova * prova); }
+  setInterval(() => { if (vivo) manda(new Uint8Array([0xc0, 0])); }, 25000);
+  apri();
+  return { iscrivi(t) { iscr.push(t); if (vivo) iscrivi(t, iscr.length); }, pubblica(t, s) { if (vivo) manda(pac(0x30, [...str(t), ...ENC.encode(s)])); }, get vivo() { return vivo; } };
+}
+const inOnda = () => ponti.some(p => p.vivo);
+function aggRegia() {
+  if (!regia) return; for (const [k, t] of ascoltatori) if (Date.now() - t > 50000) ascoltatori.delete(k);
+  const n = ascoltatori.size, s = (inOnda() ? 'in onda' : 'collego…') + ' · ' + (n === 1 ? '1 persona collegata' : n + ' persone collegate') + (live ? ' · tastiera: ' + (midiNome || 'nessuna') : ' · premi L per suonare');
+  $('#live').textContent = 'regia · ' + s; const r = $('#regiabox'); if (r) { r.textContent = 'REGIA · ' + s; r.hidden = false; }
+}
+async function avviaRegia() {                     // solo con la chiave giusta nel link: diventi la regia del live
+  if (!inizioLive || !CHIAVE_REGIA || !window.crypto || !crypto.subtle) return false;
+  try {
+    const k = await crypto.subtle.importKey('jwk', { ...REGIA_PUB, d: CHIAVE_REGIA, ext: true }, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['sign']);
+    const prova = ENC.encode('mmo'), f = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, k, prova);
+    const p = await crypto.subtle.importKey('jwk', REGIA_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']);
+    if (!(await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, p, f, prova))) return false;
+    regia = k;
+  } catch (e) { return false; }
+  ponti = PONTI.map(u => ponte(u, (t, s) => { if (t.endsWith('/ci-sono')) { ascoltatori.set(s.slice(0, 12), Date.now()); aggRegia(); } }, aggRegia));
+  ponti.forEach(p => p.iscrivi(ARGOMENTO + 'ci-sono'));
+  setInterval(aggRegia, 5000); setInterval(spedisci, 30); aggRegia(); return true;
+}
+let spedendo = false;
+async function spedisci() {                        // le note raccolte negli ultimi 30 ms partono insieme, firmate
+  if (spedendo || !codaNote.length || !regia) return; spedendo = true;
+  const ev = codaNote, t0 = ev[0][3]; codaNote = [];
+  const corpo = JSON.stringify({ k: SESS, n: ++nSeq, t: Date.now() - (performance.now() - t0), e: ev.map(x => [x[0], x[1], x[2], Math.round(x[3] - t0)]) });
+  try { const f = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, regia, ENC.encode(corpo)); const msg = corpo + '|' + b64(f); ponti.forEach(p => p.pubblica(ARGOMENTO + 'note', msg)); } catch (e) { }
+  spedendo = false;
+}
+function avviaAscolto() {                          // chi visita il live: ascolta la regia e dice «ci sono»
+  if (!inizioLive || regia || ponti.length || !window.crypto || !crypto.subtle) return;
+  crypto.subtle.importKey('jwk', REGIA_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']).then(p => { chiavePub = p; }).catch(() => { });
+  ponti = PONTI.map(u => ponte(u, (t, s) => { if (t.endsWith('/note')) riceviNote(s); }, () => ponti.forEach(p => p.pubblica(ARGOMENTO + 'ci-sono', SESS))));
+  ponti.forEach(p => p.iscrivi(ARGOMENTO + 'note'));
+  setInterval(() => ponti.forEach(p => p.pubblica(ARGOMENTO + 'ci-sono', SESS)), 20000);
+}
+async function riceviNote(s) {
+  const i = s.lastIndexOf('|'); if (i < 0 || !chiavePub) return; const corpo = s.slice(0, i);
+  let ok = false; try { ok = await crypto.subtle.verify({ name: 'ECDSA', hash: 'SHA-256' }, chiavePub, unb64(s.slice(i + 1)), ENC.encode(corpo)); } catch (e) { }
+  if (!ok) return; let m; try { m = JSON.parse(corpo); } catch (e) { return; }
+  const id = m.k + ':' + m.n; if (visteNote.has(id)) return; visteNote.add(id); if (visteNote.size > 4000) visteNote.clear();   // arriva da due ponti: la seconda copia si scarta
+  const ora = performance.now(), d = ora - m.t;                                     // orologio della regia → il mio: tengo il ritardo più corto visto
+  if (rifSess !== m.k || rifTempo === null || d < rifTempo) { rifTempo = d; rifSess = m.k; }
+  if (d > rifTempo + 6000) return;                                                  // vecchio: non si risuona
+  ultimaNotaRemota = Date.now(); if (!actx || stato === 'intro') return;
+  for (const [st, a, b, dt] of m.e) { const quando = m.t + rifTempo + dt + 140 - performance.now(); setTimeout(() => midiEv(st, a, b, true), Math.max(0, quando)); }
+}
+setInterval(() => { if (rifTempo !== null) rifTempo += 3; }, 1000);              // segue la deriva tra i due orologi
 
 // registrare il live: ciò che si vede (il mondo, senza le scritte) e ciò che si sente, in un file video
 let rec = null, recPezzi = [], recT0 = 0, recDest = null, uscita = null;
@@ -1184,9 +1275,13 @@ document.querySelectorAll('.avanti').forEach(b => b.addEventListener('click', av
 if (WEB && !linkValido()) { fase = 'scaduto'; $('#benvenuto').hidden = true;
   if (aperturaLive) { const d = new Date(aperturaLive); $('#quando').textContent = d.toLocaleDateString('it-IT', { weekday: 'long', day: 'numeric', month: 'long' }) + ', dalle ' + d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' }); $('#presto').hidden = false; setTimeout(() => location.reload(), Math.min(aperturaLive - Date.now() + 1500, 2e9)); }
   else $('#scaduto').hidden = false; }
+const durataLive = () => { const m = Math.floor((Date.now() - inizioLive) / 6e4); return m < 1 ? 'pochi secondi' : m < 60 ? m + ' min' : Math.floor(m / 60) + ' h ' + String(m % 60).padStart(2, '0') + ' min'; };
+function aggTempoLive() { if (!inizioLive) return; const s = 'LIVE IN CORSO DA ' + durataLive().toUpperCase(); $('#incorso').textContent = s; $('#incorso').hidden = false; $('#durata').textContent = 'live in corso da ' + durataLive() + (Date.now() - ultimaNotaRemota < 15000 ? ' · suona notimenospaceart' : ''); $('#durata').hidden = false; }
+if (WEB && inizioLive) { aggTempoLive(); setInterval(aggTempoLive, 15000); }
 function play() {
   if (stato !== 'intro' || fase !== 'intro') return; stato = 'gioco'; if (TOCCO) elStick.hidden = false;
   avviaAudio(); chiediBlocco();
+  if (WEB && inizioLive) avviaRegia().then(ok => { if (!ok) avviaAscolto(); else avviso('sei la regia del live · premi L e suona: chi è collegato ti sente', 7000); });
   intro.classList.add('via'); hud.hidden = false; ingresso = 2.5; tp = 1; cv.focus();
   const v0 = vintro.muted ? 0 : vintro.volume, t0 = performance.now(); const sfuma = () => { const t = (performance.now() - t0) / 1100; if (t < 1) { vintro.volume = v0 * (1 - t); requestAnimationFrame(sfuma); } };
   if (v0 > 0) sfuma();
