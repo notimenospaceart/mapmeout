@@ -683,7 +683,7 @@ function fermaSuono(j) {                         // esce sfumando; i suoni a cas
 function parteSuono(k) {                        // tutti i suoni durano uguale: entrano a tempo, nello stesso punto del giro; chi suonava prima si interrompe
   const s = SUONI[k]; if (!s.buf || k !== suonoOra) return;
   if (!s.src) { const fine = s.dur ? Math.min(s.buf.duration, s.dur) : s.buf.duration;
-    s.g = actx.createGain(); s.g.gain.value = 0; s.g.connect(guad); s.src = actx.createBufferSource(); s.src.buffer = s.buf; s.src.loop = true; s.src.loopEnd = fine; s.src.connect(s.g); s.src.start(0, actx.currentTime % fine); s.g.gain.setTargetAtTime(1, actx.currentTime, .3); }
+    s.g = actx.createGain(); s.g.gain.value = 0; s.g.connect(guad); s.src = actx.createBufferSource(); s.src.buffer = s.buf; s.src.loop = true; s.src.loopEnd = fine; s.src.connect(s.g); s.src.start(0, actx.currentTime % fine); s.g.gain.setTargetAtTime(k === BASE && baseZitto ? 0 : 1, actx.currentTime, .3); }
   for (let j = 0; j < SUONI.length; j++) if (j !== k) fermaSuono(j);
 }
 function suona(k, forza) {
@@ -729,7 +729,8 @@ function notaGiu(n, subito) {
   voci.delete(n); tenute.delete(n); const t = actx.currentTime, r = subito ? .03 : (vc.basso ? .14 : timbro.ril);
   vc.g.gain.cancelScheduledValues(t); vc.g.gain.setTargetAtTime(0, t, r / 3); vc.osc.forEach(o => { try { o.stop(t + r * 2 + .1); } catch (e) { } });
 }
-function midiEv(st, a, b, daRegia) {
+function midiEv(st, a, b, daRegia, modo) {
+  if ((daRegia ? modo : modoMio()) === 2) return strumentoEv(st, a, b);
   if (st === 0x90 && b > 0) notaSu(a, b, daRegia); else if (st === 0x80 || (st === 0x90 && b === 0)) notaGiu(a);
   else if (st === 0xb0 && a === 64) { sustain = b >= 64; if (!sustain) [...tenute].forEach(n => notaGiu(n)); }
   else if (st === 0xb0 && a === 123) { [...voci.keys()].forEach(n => notaGiu(n, true)); }
@@ -740,13 +741,14 @@ function midi(e) {
 }
 function aggLive() { if (regia) return aggRegia(); $('#live').textContent = live ? ('live · ' + (midiNome || 'nessuna tastiera collegata')) : ''; }
 function setLive(on) {
-  if (!on) { live = false; [...voci.keys()].forEach(n => notaGiu(n, true)); if (regia) codaNote.push([0xb0, 123, 0, performance.now()]); setMuto(muto); aggLive(); avviso('live spento', 1600); return; }
-  if (inizioLive && !regia) { avviso('durante il live la tastiera la suona notimenospaceart: ascolta', 4000); return; }
+  if (!on) { live = false; [...voci.keys()].forEach(n => notaGiu(n, true)); tuttoGiuMio(); if (regia) { codaNote.push([0xb0, 123, 0, performance.now()]); statoDaMandare = true; } aggBase(); setMuto(muto); aggLive(); avviso(modoMio() === 2 ? 'live spento · torna il suono dell\'ambiente' : 'live spento', 2200); return; }
+  if (WEB && !(CODICE === CODICE_PERENNE || regia)) { avviso(inizioLive ? 'durante il live la tastiera la suona notimenospaceart: ascolta' : 'qui la tastiera la suona solo notimenospaceart', 4000); return; }
   if (!navigator.requestMIDIAccess) { avviso('il live con la tastiera MIDI funziona in Brave o Chrome, non in questo browser', 6500); return; }
   navigator.requestMIDIAccess().then(acc => {
     const lega = () => { const nomi = []; acc.inputs.forEach(inp => { inp.onmidimessage = midi; nomi.push(inp.name); }); midiNome = nomi.join(', '); aggLive(); };
     lega(); acc.onstatechange = lega; live = true; setMuto(muto); aggLive();
-    avviso(regia ? (midiNome ? `in onda · ${midiNome} · chi è collegato ti sente` : 'in onda · collega la tastiera MIDI') : midiNome ? `live acceso · ${midiNome} · il timbro cambia a ogni loop` : 'live acceso · collega la tastiera MIDI', 6500);
+    if (regia) statoDaMandare = true; aggBase(); if (modoMio() === 2) caricaPiano();
+    avviso((regia ? 'in onda · ' : 'live acceso · ') + (midiNome || 'collega la tastiera MIDI') + ' · ' + (modoMio() === 2 ? 'modo 2: il tuo basso e il pianoforte (l\'ambiente tace, i loop restano)' : 'modo 1: suonano i timbri dei loop') + ' · 1 / 2 per cambiare', 7000);
   }).catch(() => avviso('il browser non ha dato accesso al MIDI', 5000));
 }
 
@@ -791,7 +793,7 @@ function ponte(url, alMessaggio, aperto) {             // un client MQTT minimo:
 const inOnda = () => ponti.some(p => p.vivo);
 function aggRegia() {
   if (!regia) return; for (const [k, t] of ascoltatori) if (Date.now() - t > 50000) ascoltatori.delete(k);
-  const n = ascoltatori.size, s = (inOnda() ? 'in onda' : 'collego…') + ' · ' + (n === 1 ? '1 persona collegata' : n + ' persone collegate') + (live ? ' · tastiera: ' + (midiNome || 'nessuna') : ' · premi L per suonare');
+  const n = ascoltatori.size, s = (inOnda() ? 'in onda' : 'collego…') + ' · ' + (n === 1 ? '1 persona collegata' : n + ' persone collegate') + ' · modo ' + modoRegia + (modoRegia === 2 ? ' (il tuo basso + pianoforte)' : ' (timbri dei loop)') + (live ? ' · tastiera: ' + (midiNome || 'nessuna') : ' · premi L per suonare') + ' · 1 / 2 cambia modo';
   $('#live').textContent = 'regia · ' + s; const r = $('#regiabox'); if (r) { r.textContent = 'REGIA · ' + s; r.hidden = false; }
 }
 async function avviaRegia() {                     // solo con la chiave giusta nel link: diventi la regia del live
@@ -811,11 +813,13 @@ async function avviaRegia() {                     // solo con la chiave giusta n
   ponti.forEach(p => p.iscrivi(ARGOMENTO + 'ci-sono'));
   setInterval(aggRegia, 5000); setInterval(spedisci, 30); aggRegia(); return true;
 }
-let spedendo = false;
-async function spedisci() {                        // le note raccolte negli ultimi 30 ms partono insieme, firmate
-  if (spedendo || !codaNote.length || !regia) return; spedendo = true;
-  const ev = codaNote, t0 = ev[0][3]; codaNote = [];
-  const corpo = JSON.stringify({ k: SESS, n: ++nSeq, t: Date.now() - (performance.now() - t0), e: ev.map(x => [x[0], x[1], x[2], Math.round(x[3] - t0)]) });
+let spedendo = false, statoDaMandare = true, ultimoStato = 0;
+async function spedisci() {                        // le note raccolte negli ultimi 30 ms partono insieme, firmate, con lo stato della regia (acceso, modo)
+  if (spedendo || !regia) return; const ora = performance.now();
+  if (!codaNote.length && !statoDaMandare && ora - ultimoStato < 1500) return;
+  spedendo = true; statoDaMandare = false; ultimoStato = ora;
+  const ev = codaNote, t0 = ev.length ? ev[0][3] : ora; codaNote = [];
+  const corpo = JSON.stringify({ k: SESS, n: ++nSeq, t: Date.now() - (performance.now() - t0), e: ev.map(x => [x[0], x[1], x[2], Math.round(x[3] - t0)]), s: [live ? 1 : 0, modoRegia] });
   try { const f = await crypto.subtle.sign({ name: 'ECDSA', hash: 'SHA-256' }, regia, ENC.encode(corpo)); const msg = corpo + '|' + b64(f); ponti.forEach(p => p.pubblica(ARGOMENTO + 'note', msg)); } catch (e) { }
   spedendo = false;
 }
@@ -834,10 +838,92 @@ async function riceviNote(s) {
   const ora = performance.now(), d = ora - m.t;                                     // orologio della regia → il mio: tengo il ritardo più corto visto
   if (rifSess !== m.k || rifTempo === null || d < rifTempo) { rifTempo = d; rifSess = m.k; }
   if (d > rifTempo + 6000) return;                                                  // vecchio: non si risuona
-  ultimaNotaRemota = Date.now(); if (!actx || stato === 'intro') return;
-  for (const [st, a, b, dt] of m.e) { const quando = m.t + rifTempo + dt + 140 - performance.now(); setTimeout(() => midiEv(st, a, b, true), Math.max(0, quando)); }
+  if (m.s) { ultimoStatoRegia = Date.now(); const l = !!m.s[0], md = m.s[1] === 2 ? 2 : 1; if (l !== regiaLive || md !== regiaModo) { if (!l || md !== regiaModo) { [...voci.keys()].forEach(n => notaGiu(n, true)); tuttoGiuMio(); } regiaLive = l; regiaModo = md; aggBase(); if (l && md === 2) caricaPiano(); } }
+  if (!m.e.length) return; ultimaNotaRemota = Date.now(); aggSuona(); if (!actx || stato === 'intro') return;
+  const md = m.s && m.s[1] === 2 ? 2 : 1;
+  for (const [st, a, b, dt] of m.e) { const quando = m.t + rifTempo + dt + 140 - performance.now(); setTimeout(() => { midiEv(st, a, b, true, md); aggSuona(); }, Math.max(0, quando)); }
 }
 setInterval(() => { if (rifTempo !== null) rifTempo += 3; }, 1000);              // segue la deriva tra i due orologi
+let regiaLive = false, regiaModo = 1, ultimoStatoRegia = 0, ultimoSuona = false;
+setInterval(() => {                                                                // la regia è sparita (pagina chiusa): torna tutto com'era
+  if (!regia && regiaLive && Date.now() - ultimoStatoRegia > 6000) { regiaLive = false; [...voci.keys()].forEach(n => notaGiu(n, true)); tuttoGiuMio(); aggBase(); }
+  aggSuona();
+}, 400);
+function staSuonando() { return Date.now() - ultimaNotaRemota < 1800 || (!regia && inizioLive && (voci.size > 0 || voceMie.size > 0 || !!bassoCorr)); }
+function aggSuona() { const s = staSuonando(); if (s !== ultimoSuona) { ultimoSuona = s; aggTempoLive(); } }   // «suona notimenospaceart» appare e sparisce subito
+
+/* --- il tuo strumento (modo 2): come nel tuo player, tastiera divisa al do centrale: sotto il basso «sub», sopra il pianoforte (Salamander Grand Piano) */
+let modoRegia = 1, baseZitto = false, busMio = null, pedaleMio = false, bassoCorr = null; const voceMie = new Map(), sospese = new Set(), bassoTenute = [], PIANO = new Map();
+const STR = { div: 60, base: 48, lo: 32.7, hi: 261.63, sub: .8, subHz: 98, gra: .35, fil: .5, att: .008, ril: .14, vol: .9, gli: .06 };
+const modoMio = () => regia || !WEB || CODICE === CODICE_PERENNE ? modoRegia : 1;
+function scegliModo(m) {
+  if (WEB && !(CODICE === CODICE_PERENNE || regia)) return;
+  if (m === modoRegia) return avviso('sei già nel modo ' + m, 1600);
+  [...voci.keys()].forEach(n => notaGiu(n, true)); tuttoGiuMio(); if (regia) { codaNote.push([0xb0, 123, 0, performance.now()]); statoDaMandare = true; }
+  modoRegia = m; aggBase(); aggLive(); if (m === 2) caricaPiano();
+  avviso(m === 2 ? 'modo 2 · il tuo basso (sotto il do centrale) e il pianoforte (sopra)' + (live ? ' · l\'ambiente tace, i loop restano' : ' · premi L per suonare') : 'modo 1 · suonano i timbri dei loop' + (live ? ' · torna il suono dell\'ambiente' : ''), 5000);
+}
+function aggBase() {                              // nel modo 2, mentre suoni, il suono di base dell'ambiente tace del tutto; i suoni dei loop restano
+  baseZitto = regia || !WEB || CODICE === CODICE_PERENNE ? (live && modoRegia === 2) : (regiaLive && regiaModo === 2);
+  const s = SUONI[BASE]; if (actx && s && s.g) s.g.gain.setTargetAtTime(baseZitto ? 0 : 1, actx.currentTime, .4);
+}
+function busStrumento() {
+  if (busMio) return busMio; const g = actx.createGain(), hp = actx.createBiquadFilter(), cp = actx.createDynamicsCompressor();
+  g.gain.value = .85; hp.type = 'highpass'; hp.frequency.value = 19; hp.Q.value = .7; cp.threshold.value = -14; cp.knee.value = 8; cp.ratio.value = 4; cp.attack.value = .003; cp.release.value = .14;
+  g.connect(hp); hp.connect(cp); cp.connect(uscita); return busMio = g;
+}
+let pianoCarico = null;
+function caricaPiano() {                          // 30 campioni del pianoforte (2 MB): arrivano solo quando serve il modo 2
+  if (pianoCarico || !actx) return pianoCarico; const nomi = { C: 0, Ds: 3, Fs: 6, A: 9 };
+  pianoCarico = Promise.all(['A0', 'C1', 'Ds1', 'Fs1', 'A1', 'C2', 'Ds2', 'Fs2', 'A2', 'C3', 'Ds3', 'Fs3', 'A3', 'C4', 'Ds4', 'Fs4', 'A4', 'C5', 'Ds5', 'Fs5', 'A5', 'C6', 'Ds6', 'Fs6', 'A6', 'C7', 'Ds7', 'Fs7', 'A7', 'C8'].map(s => {
+    const m = /^([A-Z][s]?)(\d)$/.exec(s), n = 12 * (+m[2] + 1) + nomi[m[1]];
+    return fetch('assets/campioni/' + s + '.mp3').then(r => { if (!r.ok) throw 0; return r.arrayBuffer(); }).then(b => actx.decodeAudioData(b)).then(buf => { PIANO.set(n, buf); }).catch(() => { });
+  }));
+  return pianoCarico;
+}
+function strumentoEv(st, a, b) {
+  if (!actx) return;
+  if (st === 0x90 && b > 0) { if (a < STR.div) bassoSu(a, b / 127); else pianoSu(a, b / 127); }
+  else if (st === 0x80 || (st === 0x90 && b === 0)) { if (a < STR.div) bassoGiu(a); else if (pedaleMio) sospese.add(a); else pianoGiu(a); }
+  else if (st === 0xb0 && a === 64) { pedaleMio = b >= 64; if (!pedaleMio) { [...sospese].forEach(n => pianoGiu(n)); sospese.clear(); } }   // il pedale tiene solo il pianoforte, il basso no
+  else if (st === 0xb0 && a === 123) tuttoGiuMio();
+}
+function pianoSu(n, vel) {
+  if (!PIANO.size) { caricaPiano(); return; }
+  let k = null; for (const x of PIANO.keys()) if (k === null || Math.abs(x - n) < Math.abs(k - n)) k = x;
+  pianoGiu(n, .02); if (voceMie.size > 28) pianoGiu(voceMie.keys().next().value, .03);
+  const t = actx.currentTime, src = actx.createBufferSource(), g = actx.createGain();
+  src.buffer = PIANO.get(k); src.playbackRate.value = Math.pow(2, (n - k) / 12); g.gain.value = (.12 + .88 * Math.pow(vel, 1.5)) * .9;
+  src.connect(g); g.connect(busStrumento()); src.start(t); voceMie.set(n, { src, g }); sospese.delete(n);
+}
+function pianoGiu(n, tau) {
+  const v = voceMie.get(n); if (!v) return; voceMie.delete(n); const t = actx.currentTime;
+  v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value, t); v.g.gain.setTargetAtTime(0, t, tau || .12); try { v.src.stop(t + 1.2); } catch (e) { }
+}
+let ONDA_B = null;
+function bassoSu(n, vel) {                         // monofonico, con la scivolata del tuo player: la nota nuova parte dall'altezza di quella che c'era
+  const x = 24 + (n - STR.base); let f = 440 * Math.pow(2, (x - 69) / 12); while (f < STR.lo * .9999) f *= 2; while (f > STR.hi * 1.0001) f /= 2;
+  const i = bassoTenute.indexOf(n); if (i >= 0) bassoTenute.splice(i, 1); bassoTenute.push(n);
+  const f0 = bassoCorr ? bassoCorr.f : 0; if (bassoCorr) spegniBasso(bassoCorr, .03);
+  const t = actx.currentTime, nbn = 69 + 12 * Math.log2(f / 440), a = .26 * Math.pow(vel, 1.3) * STR.vol * clamp(Math.pow(55 / f, .18), .8, 1.3) + .003;
+  if (!ONDA_B) { const A = new Float32Array(7); A[1] = 1; [0, 0, .55, .34, .2, .1, .05].forEach((v, h) => { if (h > 1) A[h] = v * STR.gra; }); ONDA_B = actx.createPeriodicWave(new Float32Array(7), A); }
+  const o = actx.createOscillator(); o.setPeriodicWave(ONDA_B);
+  if (f0 > 0) { o.frequency.setValueAtTime(f0, t); o.frequency.setTargetAtTime(f, t, STR.gli / 3); } else o.frequency.setValueAtTime(f, t);
+  const lp = actx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = Math.min(2600, f * (2 + 14 * STR.fil) * (.5 + .5 * vel)); lp.Q.value = .4;
+  const g = actx.createGain(), gm = actx.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(a, t + STR.att); g.gain.setTargetAtTime(a * .78, t + STR.att + .01, 1.4);
+  gm.gain.value = 1 - .45 * clamp((nbn - 48) / 12, 0, 1); o.connect(lp); lp.connect(gm); gm.connect(g); g.connect(busStrumento()); o.start(t);
+  const v = { n, f, o, g }; let fs = f / 2; while (fs > STR.subHz * 1.0001) fs /= 2;          // la sinusoide dei sub, sotto la nota
+  if (fs >= STR.lo * .9999) { const o2 = actx.createOscillator(), g2 = actx.createGain(); o2.type = 'sine'; if (f0 > 0) { let s0 = f0 / 2; while (s0 > STR.subHz) s0 /= 2; o2.frequency.setValueAtTime(s0, t); o2.frequency.setTargetAtTime(fs, t, STR.gli / 3); } else o2.frequency.setValueAtTime(fs, t); g2.gain.value = .9 * STR.sub; o2.connect(g2); g2.connect(g); o2.start(t); v.o2 = o2; }
+  bassoCorr = v;
+}
+function spegniBasso(v, tau) { const t = actx.currentTime; v.g.gain.cancelScheduledValues(t); v.g.gain.setValueAtTime(v.g.gain.value, t); v.g.gain.setTargetAtTime(0, t, tau); try { v.o.stop(t + .6); if (v.o2) v.o2.stop(t + .6); } catch (e) { } }
+function bassoGiu(n) {
+  const i = bassoTenute.indexOf(n); if (i >= 0) bassoTenute.splice(i, 1);
+  if (!bassoCorr || bassoCorr.n !== n) return;
+  if (bassoTenute.length) { const m = bassoTenute.pop(); bassoSu(m, .7); return; }                 // torna la nota ancora premuta
+  spegniBasso(bassoCorr, Math.max(.015, STR.ril * .5)); bassoCorr = null;
+}
+function tuttoGiuMio() { if (!actx) return; [...voceMie.keys()].forEach(n => pianoGiu(n, .05)); sospese.clear(); pedaleMio = false; bassoTenute.length = 0; if (bassoCorr) { spegniBasso(bassoCorr, .05); bassoCorr = null; } }
 
 // registrare il live: ciò che si vede (il mondo, senza le scritte) e ciò che si sente, in un file video
 let rec = null, recPezzi = [], recT0 = 0, recDest = null, uscita = null;
@@ -904,6 +990,8 @@ addEventListener('keydown', e => {
   if (e.repeat) return;
   if (e.code === 'KeyV') terza = !terza;
   if (e.code === 'KeyL') setLive(!live);
+  if (e.code === 'Digit1' || e.code === 'Numpad1') scegliModo(1);
+  if (e.code === 'Digit2' || e.code === 'Numpad2') scegliModo(2);
   if (e.code === 'KeyC') condividi();
   if (e.code === 'KeyR') registra(!rec);
   if (e.code === 'KeyX') setCampo(campo + 6);
@@ -1296,7 +1384,7 @@ function aggCantiere() {                          // dopo il live: niente tempo 
   $('#cuffie b').textContent = 'LO SPAZIO È IN COSTRUZIONE'; $('#play').firstChild.textContent = 'Entra nello spazio in costruzione';
   $('#durata').textContent = 'in costruzione · il live del ' + giornoLive() + ' è finito'; $('#durata').classList.add('cantiere'); $('#durata').hidden = false;
 }
-function aggTempoLive() { if (!inizioLive) return; const s = 'LIVE IN CORSO DA ' + durataLive().toUpperCase(); $('#incorso').textContent = s; $('#incorso').hidden = false; $('#durata').textContent = 'live in corso da ' + durataLive() + (Date.now() - ultimaNotaRemota < 15000 ? ' · suona notimenospaceart' : ''); $('#durata').hidden = false; }
+function aggTempoLive() { if (!inizioLive) return; const s = 'LIVE IN CORSO DA ' + durataLive().toUpperCase(); $('#incorso').textContent = s; $('#incorso').hidden = false; $('#durata').textContent = 'live in corso da ' + durataLive() + (staSuonando() ? ' · suona notimenospaceart' : ''); $('#durata').hidden = false; }
 if (WEB && inizioLive) { aggTempoLive(); setInterval(aggTempoLive, 15000); }
 if (WEB && dopoLive) aggCantiere();
 function play() {

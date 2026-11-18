@@ -47,7 +47,8 @@ button{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:poin
 #incorso[hidden],#durata[hidden]{display:none}
 #testa #durata{color:#d8262e;opacity:1;margin-bottom:3px;font-weight:700}
 .tocco #testa{display:flex;flex-direction:column}.tocco #testa #durata{order:9;margin:6px 0 0;max-width:62vw;white-space:normal;line-height:1.35}
-#testa #durata.cantiere{color:var(--ink)}#incorso.cantiere{color:var(--ink)}
+#testa #durata.cantiere{color:var(--ink)}
+#pausa .crediti{font-family:var(--mono);font-size:10px;opacity:.55;margin-top:14px}#incorso.cantiere{color:var(--ink)}
 #incorso.cantiere:before,#durata.cantiere:before{background:repeating-linear-gradient(45deg,#1b1b20 0 2px,#f0c22e 2px 4px);border-radius:1px;box-shadow:none;animation:none}
 #play:hover,#play:focus-visible{transform:translateX(-50%) scale(1.06);outline:none}
 #play i{position:absolute;right:1em;top:50%;width:.62em;height:.62em;margin-top:-.31em;border-radius:50%;background:#e8212b;box-shadow:0 0 .6em #e8212b;animation:lampo 1s steps(1,end) infinite}
@@ -200,6 +201,7 @@ body:not(.tocco) .solo-tocco,body.tocco .solo-mouse{display:none}
   <p><span class="solo-tocco">tocca lo schermo per riprendere</span><span class="solo-mouse">fai clic per riprendere</span><span class="pc"><br>W A S D o frecce: cammina · mouse: guarda · maiuscolo: corri<br>V: vedi la pedina · M: audio · L: live con la tastiera MIDI<br>C: condividi la mappa · R: registra il live (video + suono) · rotella o Z / X: stringe e allarga la vista<br>Tab: mappa grande · F: schermo intero · Esc: pausa</span></p>
   <button class="condividi" type="button">condividi la tua mappa (#mapmeout)</button>
   <button id="azzera" type="button">azzera la mappa dei dati scoperti</button>
+  <p class="crediti">pianoforte della regia: Salamander Grand Piano di Alexander Holm · CC BY 3.0</p>
   <div id="linkbox" hidden><span>link per gli altri</span><input id="sito" type="url" placeholder="indirizzo del sito, es. https://…" autocomplete="off"><button id="fa24" type="button">crea un link che dura 24 ore</button><button id="faper" type="button">il mio link perenne</button><code id="linkout"></code></div>
 </div>
 
