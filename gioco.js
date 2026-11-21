@@ -20,10 +20,12 @@ const WEB = document.documentElement.dataset.web === '1';          // la copia m
 const SALE = 'mmo·sposa·1485';
 function firma(t) { let h = 2166136261; for (const c of SALE + t) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); } return (h >>> 0).toString(36).padStart(7, '0').slice(0, 5); }
 const codice24 = () => { const t = (Math.floor(Date.now() / 36e5) + 24).toString(36); return 'g' + t + firma(t); };
-const CODICE_PERENNE = 'p' + firma('perenne');
+const CODICE_PERENNE = 'p' + firma('perenne');      // il tuo: sempre aperto; con la chiave dopo il punto sei la regia
+const CODICE_APERTO = 'a' + firma('aperto');        // per tutti: sempre aperto, con le nuove aggiunte; si ascolta, non si suona
 let aperturaLive = 0, inizioLive = 0, dopoLive = 0;   // dopoLive: finito il live, lo stesso link apre lo spazio in costruzione             // link «d…»: vale solo nel giorno del live (24 ore), non prima
 const [CODICE, CHIAVE_REGIA] = location.hash.replace('#', '').split('.');   // dopo il punto c'è la chiave della regia: solo nel tuo link
-function linkValido() { const h = CODICE; if (h === CODICE_PERENNE) return true;
+const SEMPRE = CODICE === CODICE_PERENNE || CODICE === CODICE_APERTO;   // i due link che non scadono: stessa stanza d'ascolto
+function linkValido() { const h = CODICE; if (SEMPRE) return true;
   if (h[0] === 'd' && h.length >= 7) { const t = h.slice(1, -5), fine = parseInt(t, 36) * 36e5; if (firma('d' + t) !== h.slice(-5)) return false; if (fine <= Date.now()) { dopoLive = fine - 864e5; return true; } if (Date.now() < fine - 864e5) { aperturaLive = fine - 864e5; return false; } inizioLive = fine - 864e5; return true; } if (h[0] !== 'g' || h.length < 7) return false; const t = h.slice(1, -5); return firma(t) === h.slice(-5) && parseInt(t, 36) * 36e5 > Date.now(); }
 // ogni visitatore ha la sua disposizione dello spazio: il suo passaggio è già una variabile
 let SEME = 0;
@@ -742,7 +744,7 @@ function midi(e) {
 function aggLive() { if (regia) return aggRegia(); $('#live').textContent = live ? ('live · ' + (midiNome || 'nessuna tastiera collegata')) : ''; }
 function setLive(on) {
   if (!on) { live = false; [...voci.keys()].forEach(n => notaGiu(n, true)); tuttoGiuMio(); if (regia) { codaNote.push([0xb0, 123, 0, performance.now()]); statoDaMandare = true; } aggBase(); setMuto(muto); aggLive(); avviso(modoMio() === 2 ? 'live spento · torna il suono dell\'ambiente' : 'live spento', 2200); return; }
-  if (WEB && !(CODICE === CODICE_PERENNE || regia)) { avviso(inizioLive ? 'durante il live la tastiera la suona notimenospaceart: ascolta' : 'qui la tastiera la suona solo notimenospaceart', 4000); return; }
+  if (WEB && !regia) { avviso(inizioLive ? 'durante il live la tastiera la suona notimenospaceart: ascolta' : 'qui la tastiera la suona solo notimenospaceart', 4000); return; }
   if (!navigator.requestMIDIAccess) { avviso('il live con la tastiera MIDI funziona in Brave o Chrome, non in questo browser', 6500); return; }
   navigator.requestMIDIAccess().then(acc => {
     const lega = () => { const nomi = []; acc.inputs.forEach(inp => { inp.onmidimessage = midi; nomi.push(inp.name); }); midiNome = nomi.join(', '); aggLive(); };
@@ -761,7 +763,7 @@ const SESS = Math.random().toString(36).slice(2, 10), ENC = new TextEncoder(), D
 const b64 = u => btoa(String.fromCharCode(...new Uint8Array(u))).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 const unb64 = s => Uint8Array.from(atob(s.replace(/-/g, '+').replace(/_/g, '/')), c => c.charCodeAt(0));
 let regia = null, chiavePub = null, ponti = [], nSeq = 0, codaNote = [], ultimaNotaRemota = 0, ascoltatori = new Map(), visteNote = new Set(), rifTempo = null, rifSess = '', perdute = 0;
-const ARGOMENTO = 'notimenospaceart/mapmeout/' + (CODICE || 'x') + '/';
+const ARGOMENTO = 'notimenospaceart/mapmeout/' + (SEMPRE ? CODICE_APERTO : (CODICE || 'x')) + '/';
 function ponte(url, alMessaggio, aperto) {             // un client MQTT minimo: collega, iscrive, pubblica, si ricollega da solo
   let ws = null, buf = new Uint8Array(0), vivo = false, prova = 0; const iscr = [];
   const str = s => { const b = ENC.encode(s); return [b.length >> 8, b.length & 255, ...b]; };
@@ -797,7 +799,7 @@ function aggRegia() {
   $('#live').textContent = 'regia · ' + s; const r = $('#regiabox'); if (r) { r.textContent = 'REGIA · ' + s; r.hidden = false; }
 }
 async function avviaRegia() {                     // solo con la chiave giusta nel link: diventi la regia del live
-  if (!inizioLive || !CHIAVE_REGIA || !window.crypto || !crypto.subtle) return false;
+  if (!(inizioLive || SEMPRE) || !CHIAVE_REGIA || !window.crypto || !crypto.subtle) return false;
   // la chiave copiata a mano o dal telefono può avere un trattino d'a-capo o una I scambiata con una l: provo anche quelle
   const c0 = decodeURIComponent(CHIAVE_REGIA).replace(/[\s\u00ad]/g, ''), cand = [...new Set([c0, c0.replace(/-/g, ''), c0.replace(/l/g, 'I'), c0.replace(/-/g, '').replace(/l/g, 'I'), c0.replace(/I/g, 'l')])];
   let pub; try { pub = await crypto.subtle.importKey('jwk', REGIA_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']); } catch (e) { return false; }
@@ -824,7 +826,7 @@ async function spedisci() {                        // le note raccolte negli ult
   spedendo = false;
 }
 function avviaAscolto() {                          // chi visita il live: ascolta la regia e dice «ci sono»
-  if (!inizioLive || regia || ponti.length || !window.crypto || !crypto.subtle) return;
+  if (!(inizioLive || SEMPRE) || regia || ponti.length || !window.crypto || !crypto.subtle) return;
   crypto.subtle.importKey('jwk', REGIA_PUB, { name: 'ECDSA', namedCurve: 'P-256' }, false, ['verify']).then(p => { chiavePub = p; }).catch(() => { });
   ponti = PONTI.map(u => ponte(u, (t, s) => { if (t.endsWith('/note')) riceviNote(s); }, () => ponti.forEach(p => p.pubblica(ARGOMENTO + 'ci-sono', SESS))));
   ponti.forEach(p => p.iscrivi(ARGOMENTO + 'note'));
@@ -850,21 +852,21 @@ setInterval(() => {                                                             
   aggSuona();
 }, 400);
 function staSuonando() { return Date.now() - ultimaNotaRemota < 1800 || (!regia && inizioLive && (voci.size > 0 || voceMie.size > 0 || !!bassoCorr)); }
-function aggSuona() { const s = staSuonando(); if (s !== ultimoSuona) { ultimoSuona = s; aggTempoLive(); } }   // «suona notimenospaceart» appare e sparisce subito
+function aggSuona() { const s = staSuonando(); if (s !== ultimoSuona) { ultimoSuona = s; aggTempoLive(); aggSempre(); } }   // «suona notimenospaceart» appare e sparisce subito
 
 /* --- il tuo strumento (modo 2): come nel tuo player, tastiera divisa al do centrale: sotto il basso «sub», sopra il pianoforte (Salamander Grand Piano) */
 let modoRegia = 1, baseZitto = false, busMio = null, pedaleMio = false, bassoCorr = null; const voceMie = new Map(), sospese = new Set(), bassoTenute = [], PIANO = new Map();
 const STR = { div: 60, base: 48, lo: 32.7, hi: 261.63, sub: .8, subHz: 98, gra: .35, fil: .5, att: .008, ril: .14, vol: .9, gli: .06 };
-const modoMio = () => regia || !WEB || CODICE === CODICE_PERENNE ? modoRegia : 1;
+const modoMio = () => regia || !WEB ? modoRegia : 1;
 function scegliModo(m) {
-  if (WEB && !(CODICE === CODICE_PERENNE || regia)) return;
+  if (WEB && !regia) return;
   if (m === modoRegia) return avviso('sei già nel modo ' + m, 1600);
   [...voci.keys()].forEach(n => notaGiu(n, true)); tuttoGiuMio(); if (regia) { codaNote.push([0xb0, 123, 0, performance.now()]); statoDaMandare = true; }
   modoRegia = m; aggBase(); aggLive(); if (m === 2) caricaPiano();
   avviso(m === 2 ? 'modo 2 · il tuo basso (sotto il do centrale) e il pianoforte (sopra)' + (live ? ' · l\'ambiente tace, i loop restano' : ' · premi L per suonare') : 'modo 1 · suonano i timbri dei loop' + (live ? ' · torna il suono dell\'ambiente' : ''), 5000);
 }
 function aggBase() {                              // nel modo 2, mentre suoni, il suono di base dell'ambiente tace del tutto; i suoni dei loop restano
-  baseZitto = regia || !WEB || CODICE === CODICE_PERENNE ? (live && modoRegia === 2) : (regiaLive && regiaModo === 2);
+  baseZitto = regia || !WEB ? (live && modoRegia === 2) : (regiaLive && regiaModo === 2);
   const s = SUONI[BASE]; if (actx && s && s.g) s.g.gain.setTargetAtTime(baseZitto ? 0 : 1, actx.currentTime, .4);
 }
 function busStrumento() {
@@ -1386,11 +1388,13 @@ function aggCantiere() {                          // dopo il live: niente tempo 
 }
 function aggTempoLive() { if (!inizioLive) return; const s = 'LIVE IN CORSO DA ' + durataLive().toUpperCase(); $('#incorso').textContent = s; $('#incorso').hidden = false; $('#durata').textContent = 'live in corso da ' + durataLive() + (staSuonando() ? ' · suona notimenospaceart' : ''); $('#durata').hidden = false; }
 if (WEB && inizioLive) { aggTempoLive(); setInterval(aggTempoLive, 15000); }
+function aggSempre() { if (!WEB || !SEMPRE) return; $('#durata').textContent = 'spazio in costruzione · sempre aperto' + (staSuonando() ? ' · suona notimenospaceart' : ''); $('#durata').classList.add('cantiere'); $('#durata').hidden = false; }
+aggSempre();
 if (WEB && dopoLive) aggCantiere();
 function play() {
   if (stato !== 'intro' || fase !== 'intro') return; stato = 'gioco'; if (TOCCO) elStick.hidden = false;
   avviaAudio(); chiediBlocco();
-  if (WEB && inizioLive) avviaRegia().then(ok => { if (!ok) avviaAscolto(); else avviso('sei la regia del live · premi L e suona: chi è collegato ti sente', 7000); });
+  if (WEB && (inizioLive || SEMPRE)) avviaRegia().then(ok => { if (!ok) avviaAscolto(); else avviso(inizioLive ? 'sei la regia del live · premi L e suona: chi è collegato ti sente' : 'sei la regia · premi L e suona: chi è sul link per tutti ti sente', 7000); });
   intro.classList.add('via'); hud.hidden = false; ingresso = 2.5; tp = 1; cv.focus();
   const v0 = vintro.muted ? 0 : vintro.volume, t0 = performance.now(); const sfuma = () => { const t = (performance.now() - t0) / 1100; if (t < 1) { vintro.volume = v0 * (1 - t); requestAnimationFrame(sfuma); } };
   if (v0 > 0) sfuma();
@@ -1450,7 +1454,7 @@ if (SUL_MAC && $('#linkbox')) { $('#linkbox').hidden = false;
   const sito = $('#sito'), out = $('#linkout'); try { sito.value = localStorage.getItem('mmo-sito') || 'https://notimenospaceart.github.io/mapmeout/'; } catch (e) { sito.value = 'https://notimenospaceart.github.io/mapmeout/'; }
   $('#linkbox').addEventListener('click', e => e.stopPropagation());
   const fai = cod => { const base = sito.value.trim().replace(/#.*$/, ''); if (!/^https?:\/\//.test(base)) { out.textContent = 'scrivi prima l\'indirizzo del sito (comincia con https://)'; return; } try { localStorage.setItem('mmo-sito', base); } catch (e) { } const l = base + '#' + cod; out.textContent = l; try { navigator.clipboard.writeText(l); out.textContent = l + '  — copiato'; } catch (e) { } };
-  $('#fa24').addEventListener('click', () => fai(codice24())); $('#faper').addEventListener('click', () => fai(CODICE_PERENNE));
+  $('#fa24').addEventListener('click', () => fai(codice24())); $('#faper').addEventListener('click', () => fai(CODICE_PERENNE)); if ($('#faaperto')) $('#faaperto').addEventListener('click', () => fai(CODICE_APERTO));
 }
 $('#azzera').addEventListener('click', e => { e.stopPropagation(); scoperti.clear(); tracce.forEach(t => t.length = 0); salva(); $('#nd').textContent = 0; e.currentTarget.textContent = 'mappa azzerata'; setTimeout(() => { e.currentTarget.textContent = 'azzera la mappa dei dati scoperti'; }, 1800); });
 addEventListener('pagehide', salva);
